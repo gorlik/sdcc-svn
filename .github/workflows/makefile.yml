@@ -15,12 +15,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    
+    - name: boost
+      run: sudo apt-get update && sudo apt-get install -yq libboost-dev   
+
     - name: configure
       run: cd sdcc; ./configure --disable-pic14-port --disable-pic16-port
       
-    - name: Install dependencies
-      run: cd sdcc; make
+    - name: make
+      run: cd sdcc; make -j 2
       
     - name: Run check
       run: cd sdcc/support/regression; make test-uc6502
