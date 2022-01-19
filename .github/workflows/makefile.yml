@@ -1,0 +1,30 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: configure
+      run: cd sdcc
+           ./configure --disable-pic14-port --disable-pic16-port
+      
+    - name: Install dependencies
+      run: cd sdcc
+           make
+      
+    - name: Run check
+      run: cd sdcc/support/regression
+           make test-uc6502
+           
