@@ -17,14 +17,11 @@ jobs:
     - uses: actions/checkout@v2
     
     - name: configure
-      run: cd sdcc
-           ./configure --disable-pic14-port --disable-pic16-port
+      run: cd sdcc; ./configure --disable-pic14-port --disable-pic16-port
       
     - name: Install dependencies
-      run: cd sdcc
-           make
+      run: cd sdcc; make
       
     - name: Run check
-      run: cd sdcc/support/regression
-           make test-uc6502
+      run: cd sdcc/support/regression; make test-uc6502
            
