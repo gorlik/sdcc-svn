@@ -11,7 +11,12 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    name: Test on  ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+
 
     steps:
     - uses: actions/checkout@v2
@@ -24,6 +29,15 @@ jobs:
     - name: make
       run: cd sdcc; make -j 2
       
-    - name: Run check
-      run: cd sdcc/support/regression; make test-uc6502
-           
+    - name: test 6502 port
+      run: cd sdcc/support/regression; make test-uc6502 -j 2
+
+    - name: test STM8 port
+      run: cd sdcc/support/regression; make test-stm8 -j 2
+
+    - name: test S08 port
+      run: cd sdcc/support/regression; make test-s08 -j 2
+
+    - name: test Z80 port
+      run: cd sdcc/support/regression; make test-ucz80 -j 2
+
