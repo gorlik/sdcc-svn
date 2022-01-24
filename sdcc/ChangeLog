@@ -1,3 +1,48 @@
+2022-01-23 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c:
+      Add swapAX function.
+
+2022-01-23 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c:
+      Add cycle based cost calculation.
+
+2022-01-23 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c:
+      Implement a few missing codegen paths.
+
+2022-01-23 Benedikt Freisen <b.freisen AT gmx.net>
+
+	* device/include/mcs51/P89LPC901.h,
+	  device/include/mcs51/P89LPC922.h,
+	  device/include/mcs51/P89LPC925.h,
+	  device/include/mcs51/P89LPC932.h,
+	  device/include/mcs51/P89c51RD2.h,
+	  device/include/mcs51/cc1110.h,
+	  device/include/mcs51/cc2430.h,
+	  device/include/mcs51/cc2530.h,
+	  device/include/mcs51/uPSD33xx.h:
+	  Fix bug #3300, namely encoding issues in various headers.
+
+2022-01-23 Benedikt Freisen <b.freisen AT gmx.net>
+
+	* src/SDCCmain.c:
+	  Implement CLI option --include.
+
+2022-01-23 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c,
+      sdcc/src/mos6502/ralloc.c,
+      sdcc/src/mos6502/ralloc.h:
+      Update opcode table and unified opcode size code.
+
+2022-01-22 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c:
+      Use code gen functions instead of raw assembly when possible.
+
 2022-01-21 Gabriele Gorla <gorlik@yahoo.com>
 
     * sdcc/src/mos6502/peep.def:
