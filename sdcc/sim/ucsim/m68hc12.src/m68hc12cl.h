@@ -73,6 +73,8 @@ public:
   class cl_wrap *hc12wrap;
   u16_t TMP2, TMP3;
   class cl_cell16 cTMP2, cTMP3;
+  class cl_memory_cell *tex_cells[8];
+  const char *tex_names[8];
 public:
   cl_m68hc12(class cl_sim *asim);
   virtual int init(void);
@@ -89,17 +91,33 @@ public:
   virtual struct dis_entry *get_dis_entry(t_addr addr);
   virtual char *disassc(t_addr addr, chars *comment=NULL);
   virtual void disass_xb(t_addr *addr, chars *work, chars *comment);
+  virtual void disass_b7(t_addr *addr, chars *work, chars *comment);
+  virtual int inst_length(t_addr addr);
   virtual int longest_inst(void) { return 6; }
 
   virtual int exec_inst(void);
   virtual void post_inst(void);
   virtual i16_t s8_16(u8_t op); // sex 8->16
   virtual t_addr naddr(t_addr *addr); // xb -> post_inc_dec,post_idx_reg
-
   virtual u8_t xbop8();
+  virtual u16_t xbop16();
+  virtual class cl_memory_cell &xb(void);
+  virtual class cl_memory_cell &xbdst(void) { vc.rd++; vc.wr++; return xb(); }
   
   virtual void print_regs(class cl_console_base *con);
 
+  virtual int exec_b7(void);
+  virtual int trap(t_mem code);
+
+  // ALU
+  virtual int sub16(class cl_cell16 &dest, u16_t op);
+  virtual int add16(class cl_cell16 &dest, u16_t op);
+  virtual int cp16(u16_t op1, u16_t op2);
+
+  // MOVE
+#define ld16 ldsx
+
+  // OTHER
   
 };
 
