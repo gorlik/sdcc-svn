@@ -1,3 +1,137 @@
+2022-02-02 Sebastian 'basxto' Riedel <sdcc@basxto.de>
+
+	* support/makebin/makebin.c:
+	  Fix segmentation fault when using -yp and patching of wrong address.
+
+2022-02-03 Benedikt Freisen <b.freisen AT gmx.net>
+
+	* doc/sdccman.lyx:
+	  Update documentation.
+
+2022-02-03 Philipp Klaus Krause <krauseph@informatik.uni-freiburg.de>
+
+	* device/lib/printf_large.c,
+	  src/SDCCBBlock.h,
+	  src/SDCCast.c,
+	  src/SDCCdwarf2.c,
+	  src/SDCCicode.c,
+	  src/SDCClabel.c,
+	  src/SDCCloop.c,
+	  src/SDCCmacro.c,
+	  src/SDCCset.c,
+	  src/SDCCutil.c,
+	  src/ds390/ralloc.c,
+	  src/z80/ralloc.c,
+	  support/regression/generate-cases.py:
+	  Fix typos in comments.
+	* src/z80/gen.c,
+	  src/pdk/gen.c,
+	  src/stm8/gen.c,
+	  src/stm8/main.c,
+	  src/SDCCval.h,
+	  src/SDCCval.c:
+	  Use CSD representation for multiplication by literal in a.
+
+2022-02-02 Gabriele Gorla <gorlik@yahoo.com>
+
+	* sdcc/src/mos6502/gen.c,
+	  sdcc/src/mos6502/gen.H,
+	  sdcc/src/mos6502/main.c,
+	  sdcc/src/mos6502/ralloc.c,
+	  sdcc/src/mos6502/ralloc.h,
+	  sdcc/src/mos6502/ralloc2.cc:  
+	  Removed dead code and refactored load/stroreRegTemp.
+      
+2022-02-02 Benedikt Freisen <b.freisen AT gmx.net>
+
+	* support/scripts/sdcc.ico:
+	  Add a 48x48 pixel icon.
+
+2022-02-02 Sebastian 'basxto' Riedel <sdcc@basxto.de>
+
+	* sdas/asxxsrc/asxxxx.h:
+	  Raise NCPS to 256 like in upstream ASXXXX. (workaround for bug-3277)
+
+2022-02-02 Sebastian 'basxto' Riedel <sdcc@basxto.de>
+
+	* support/makebin/makebin.c:
+	  Improve SMS/GG defaults and allow to define an offset that's skipped for the rom.
+
+2022-02-02 Benedikt Freisen <b.freisen AT gmx.net>
+
+	* src/SDCCdwarf2.c,
+	  src/SDCCutil.c,
+	  src/SDCCutil.h:
+	  Add string escaping to dwWriteString.
+
+2022-02-02 Benedikt Freisen <b.freisen AT gmx.net>
+
+	* sdas/asxxsrc/asmain.c:
+	  Fix bug #2970 via trivial patch by David Grayson.
+
+2022-02-02 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/device/lib/mos6502/Makefile.in:
+      Enable optimization for the library.
+    * sdcc/src/mos6502/gen.c:
+      Commented out code that triggers bug-477927 regression.
+    * sdcc/src/mos6502/peep.def:
+      Add rule to optimize function entry.
+
+2022-02-02 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c:
+      Implement cost based on both code size and cycles.
+
+2022-02-01 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c:
+      Fix several bugs in the code generator.
+
+2022-02-01 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/device/lib/mos6502/__memcpy.c,
+      sdcc/device/lib/mos6502/_mulint.s,
+      sdcc/device/lib/mos6502/_mullong.s,
+      sdcc/device/lib/mos6502/_divuint.s,
+      sdcc/device/lib/mos6502/_divulong.s,
+      sdcc/device/lib/mos6502/_strcmp.s,
+      sdcc/device/lib/mos6502/_strcpy.s:
+      Implement additional library functions in assembly.
+
+2022-02-01 Philipp Klaus Krause <krauseph@informatik.uni-freiburg.de>
+
+	* support/regression/Makefile.in:
+	  Do not run mos6502 and mcs51-xstack-auto tests for all target, since they have extra dependencies.
+	* support/regression/ports/*/spec.mk:
+	  Increase some timeouts in hope of making the bug-3129 regression test pass on that slow PPC Mac in the compile farm.
+	* support/regression/tests/gcc-torture-execute-920711-1.c,
+	  support/regression/tests/gcc-torture-execute-941021-1.c:
+	  Disable two tests for hosts with older gcc, where they apparently fail.
+
+2022-01-31 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/device/lib/mos6502/_mulint.c,
+      sdcc/device/lib/mos6502/_mulint.s,
+      sdcc/device/lib/mos6502/_mullong.s,
+      sdcc/device/lib/mos6502/_ret.c:
+      Implement mulint and mullong in assembly.
+
+2022-01-30 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c:
+      Improve memory shift operations.
+      
+2022-01-30 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c:
+      Improve register shift operations.
+
+2022-01-30 Gabriele Gorla <gorlik@yahoo.com>
+
+    * sdcc/src/mos6502/gen.c:
+      Expand use of inc/dec for literal add/sub operations.
+
 2022-01-30 Gabriele Gorla <gorlik@yahoo.com>
 
     * sdcc/src/mos6502/gen.c:
