@@ -23,9 +23,9 @@
               targets the <b><i>Intel MCS51 </i></b> based microprocessors <b><i>(8031, 8032, 8051, 8052, etc.)</i></b>,
               <b><i>Maxim</i></b> (formerly <b><i>Dallas</i></b>) <b><i>DS80C390</i></b> variants,
               <b><i>Freescale</i></b> (formerly <b><i>Motorola</i></b>) <b><i>HC08</i></b> based <b><i>(hc08, s08)</i></b>,
-              <b><i>Zilog Z80</i></b> based MCUs <b><i>(z80, z180, gbz80, Rabbit 2000/3000, Rabbit 3000A, TLCS-90)</i></b>, <b><i>Padauk (pdk14, pdk15)</b></i> and
+              <b><i>Zilog Z80</i></b> based MCUs <b><i>(Z80, Z180, SM83, Rabbit 2000, 2000A, 3000A, TLCS-90)</i></b>, <b><i>Padauk (pdk14, pdk15)</b></i> and
               <b><i>STMicroelectronics STM8</i></b>.
-              Work is in progress on supporting the <b><i>Padauk pdk13</b></i> target; <b><i>Microchip PIC16</i></b> and <b><i>PIC18</i></b>
+              Work is in progress on supporting the <b><i>Padauk pdk13</b></i> and <b><i>MOS 6502</b></i> targets; <b><i>Microchip PIC16</i></b> and <b><i>PIC18</i></b>
               targets are unmaintained. SDCC can be retargeted for other microprocessors.</p>
            <p>SDCC suite is a collection of several components derived from different sources with
               different FOSS licenses. SDCC compiler suite include:</p>
@@ -67,6 +67,16 @@
             
             <h2><a name="News"></a>News</h2>
 
+            <p><i><b>Feb 27th, 2022: SDCC 4.2.0 RC2 released.</b></i></p>
+            <p>SDCC 4.2.0 Release Candidate 2 source, doc and binary packages for amd64 GNU/Linux, 32 and 64 bit Windows and amd64 macOS are available in corresponding folders at:
+              <a href="http://sourceforge.net/projects/sdcc/files/">
+              http://sourceforge.net/projects/sdcc/files/</a>.</p>
+
+            <p><i><b>Feb 22nd, 2022: SDCC 4.2.0 RC1 released.</b></i></p>
+            <p>SDCC 4.2.0 Release Candidate 1 source, doc and binary packages for amd64 GNU/Linux, 32 and 64 bit Windows and amd64 macOS are available in corresponding folders at:
+              <a href="http://sourceforge.net/projects/sdcc/files/">
+              http://sourceforge.net/projects/sdcc/files/</a>.</p>
+
             <p><i><b>Mar 8th, 2021: SDCC 4.1.0 released.</b></i></p>
             <p>A new release of SDCC, the portable optimizing compiler for 8051, DS390, Z80, Z180, Rabbit 2000, GBZ80, eZ80, TLCS-90,
               HC08, STM8, Padauk and PIC microprocessors is now available
@@ -104,8 +114,8 @@
 
             <p>See the <a href="https://sourceforge.net/projects/sdcc/files/">
               Sourceforge download page</a> for the last released version including source and
-              binary packages for <b>Linux - x86</b>, <b>Microsoft Windows - x86</b>,
-              <b>Microsoft Windows - x86_64</b> and <b>Mac OS X - ppc and i386</b>.</p>
+              binary packages for <b>Linux - amd64</b>, <b>Microsoft Windows - x86</b>,
+              <b>Microsoft Windows - amd64</b> and <b>Mac OS X - ppc and amd64</b>.</p>
             <p>Major Linux distributions take care of SDCC installation packages themselves
               and you will find SDCC in their repositories. Unfortunately SDCC packages included
               in Linux disributions are often outdated. In this case users are encouraged to compile
@@ -113,18 +123,10 @@
               the pre-compiled binaries from
               <a href="https://sourceforge.net/projects/sdcc/files/">
               Sourceforge download page</a>.</p>
-            <p>SDCC is known to compile from the source code also on the following platforms:</p>
+            <p>In addition, SDCC should compile on any modern Unix-like OS; the following are included in automated regression testing, like the release packages:</p>
             <ul>
-              <li>Linux - x86_64</li>
-              <li>Linux - Alpha</li>
-              <li>Linux - IBM Power5</li>
-              <li>NetBSD - i386</li>
-              <li>NetBSD - Sparc64</li>
-              <li>FreeBSD - i386</li>
-              <li>SUN Solaris - i386</li>
-              <li>SUN Solaris - Sparc</li>
-              <li>Rasbian (Debian for Raspberry Pi) - ARMv6</li>
-              <li>Debian - ARMv7-a</li>
+              <li>Linux - x86</li>
+              <li>FreeBSD - aarch64</li>
             </ul>
             <p>SDCC is always under active development. Please consider
               <a href="snap.php">downloading one of the snapshot builds</a>
@@ -272,31 +274,6 @@
 
             <p><i><b>Jan 24th, 2020: SDCC 4.0.0 RC1 released.</b></i></p>
             <p>SDCC 4.0.0 Release Candidate 1 source, doc and binary packages for amd64 GNU/Linux, 32 and 64 bit Windows and amd64 macOS are available in corresponding folders at:
-              <a href="http://sourceforge.net/projects/sdcc/files/">
-              http://sourceforge.net/projects/sdcc/files/</a>.</p>
-
-            <p><i><b>Apr 15th, 2019: SDCC 3.9.0  released.</b></i></p>
-            <p>A new release of SDCC, the portable optimizing compiler for 8051, DS390, Z80, Z180, Rabbit 2000, GBZ80, eZ80, TLCS-90,
-              HC08, STM8, Padauk and PIC microprocessors is now available
-              (<a href="http://sdcc.sourceforge.net" target="_new">http://sdcc.sourceforge.net</a>).
-              Sources, documentation and binaries for GNU/Linux amd64, Windows amd64, macOS amd64 and Windows x86 are available.</p>
-            <p>SDCC 3.9.0 Feature List:</p>
-            <ul>
-              <li>Support for struct / union assignment.</li>
-              <li>Optimizations in the stm8 backend relevant to soft float increase Whetstone score by two thirds.</li>
-              <li>Improvements in rematerialization in the stm8 backend improve code generation for struct, union and arrays.</li>
-              <li>New stack allocator reduces stack space usage for the stm8, z80, z180, gbz80, r2k, r3ka, tlcs90 backends.</li>
-              <li>New ez80_z80 backend for eZ80 in Z80 mode.</li>
-              <li>Removed deprecated sdcclib utility.</li>
-              <li>New pdk14 backend for Padauk µC with 14-bit wide program memory.</li>
-              <li>New in-development pdk15 backend for Padauk µC with 15-bit wide program memory.</li>
-            </ul>
-            <p>Numerous other new features and bug fixes are included as well.</p>
-            <p>You can download the release from:<br />
-              <a href="https://sourceforge.net/projects/sdcc/files/">https://sourceforge.net/projects/sdcc/files/</a></p>
-
-            <p><i><b>Apr 8th, 2019: SDCC 3.9.0 RC1 released.</b></i></p>
-            <p>SDCC 3.9.0 Release Candidate 1 source, doc and binary packages for amd64 GNU/Linux, 32 and 64 bit Windows and amd64 macOS are available in corresponding folders at:
               <a href="http://sourceforge.net/projects/sdcc/files/">
               http://sourceforge.net/projects/sdcc/files/</a>.</p>
 
