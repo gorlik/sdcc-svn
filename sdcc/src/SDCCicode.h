@@ -230,6 +230,7 @@ iCodeTable;
 
 #define SKIP_IC(x)   (x->op == PCALL        ||    \
                       x->op == IPUSH        ||    \
+                      x->op == IPUSH_VALUE_AT_ADDRESS || \
                       x->op == IPOP         ||    \
                       x->op == JUMPTABLE    ||    \
                       x->op == RECEIVE      ||    \
@@ -336,8 +337,8 @@ symbol *newiTempLoopHeaderLabel (bool);
 iCode *newiCode (int, operand *, operand *);
 sym_link *operandType (const operand *);
 unsigned int operandSize (operand *);
-operand *operandFromValue (value *);
-operand *operandFromSymbol (symbol *);
+operand *operandFromValue (value *, bool convert_sym_to_ptr);
+operand *operandFromSymbol (symbol *, bool convert_sym_to_ptr);
 operand *operandFromLink (sym_link *);
 sym_link *aggrToPtr (sym_link *, bool);
 int aggrToPtrDclType (sym_link *, bool);

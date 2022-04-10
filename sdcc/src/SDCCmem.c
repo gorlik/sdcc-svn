@@ -655,7 +655,7 @@ allocParms (value *val, bool smallc)
       /* if automatic variables r 2b stacked */
       if (options.stackAuto || IFFUNC_ISREENT (currFunc->type))
         {
-          int paramsize = getSize (lval->type) + (getSize (lval->type) == 1 && (smallc || TARGET_PDK_LIKE));
+          int paramsize = getSize (lval->type) + (getSize (lval->type) == 1 && smallc) + (getSize (lval->type) % 2 && TARGET_PDK_LIKE);
 
           if (lval->sym)
             lval->sym->onStack = 1;
@@ -1267,8 +1267,14 @@ canOverlayLocals (eBBlock ** ebbs, int count)
     {
       return FALSE;
     }
+
   /* if this is a forces overlay */
   if (IFFUNC_ISOVERLAY(currFunc->type)) return TRUE;
+
+  // struct / union parameters are written using memcpy, which goes very wrong if they are overlaid with memcpy's parameters.
+  for (value *arg = FUNC_ARGS (currFunc->type); arg; arg = arg->next)
+    if (IS_STRUCT (arg->type))
+      return false;
 
   /* otherwise do thru the blocks and see if there
      any function calls if found then return false */

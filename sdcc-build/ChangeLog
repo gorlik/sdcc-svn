@@ -1,3 +1,39 @@
+2022-04-03 Philipp Klaus Krause <pkk AT spth.de>
+
+	* lib/variables.mk:
+	  Rename mcs51-stack-auto to mcs51-small-stack-auto for consistency with mcs51-small and mcs51-large-stack-auto.
+
+2022-04-02 Philipp Klaus Krause <pkk AT spth.de>
+
+	* components/sdcc.mk:
+	  Revert wineconsole back to wine, which should work according to the Wine User's guide (but don't revert back to wine64).
+
+2022-03-30 Philipp Klaus Krause <pkk AT spth.de>
+
+	* components/sdcc.mk:
+	  Use wineconsole instead of wine to invoke wine (to silence error messages when there is no display server, bug #3366).
+
+2022-03-25 Philipp Klaus Krause <pkk AT spth.de>
+
+	* lib/variables.mk:
+	  Test use of undocumented Z80 instructions.
+
+2022-03-17 Philipp Klaus Krause <pkk AT spth.de>
+
+	* lib/variables.mk,
+	  local/freebsd-13-aarch64.mk:
+	  Allow compile farm machines to opt into full regression testing.
+
+2021-03-17 Erik Petrich <epetrich AT ivorytower.norman.ok.us>
+
+	* lib/variables.mk: update DCF hub server
+	* lib/upload.mk: accept new DCF hub host key automatically
+
+2022-03-16 Philipp Klaus Krause <pkk AT spth.de>
+
+	* lib/variables.mk:
+	  Test mos6502 port.
+
 2021-06-13 Erik Petrich <epetrich AT ivorytower.norman.ok.us>
 
 	* lib/variables.mk: cycle through regression test targets every

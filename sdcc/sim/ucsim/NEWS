@@ -1,11 +1,22 @@
-0.6.2
+0.8
 
-- Bugfixes for M6809 simulator.
+Motorola HC12 simulator.
 
 
-0.6.1
+0.7.x
 
-- Bugfixes for MCS6502 simulator.
+Bugfix releases.
+
+
+0.7
+
+New sub-option for -S option: raw, serial input will be
+non-interactive even on tty.
+
+
+0.6.x
+
+Bugfix releases.
 
 
 0.6

@@ -66,10 +66,15 @@ extern bool is_hex_file(class cl_f *f);
 extern bool is_asc_file(class cl_f *f);
 extern bool is_omf_file(class cl_f *f);
 extern bool is_cdb_file(class cl_f *f);
+extern bool is_s19_file(class cl_f *f);
 
 extern chars colopt2ansiseq(char *opt);
 
 extern double strtoscale(const char *s, const char **units = 0);
+
+extern void srnd(unsigned int seed);
+extern unsigned int urnd(void);
+
 
 #endif
 

@@ -539,7 +539,7 @@ isAstEqual (ast * t1, ast * t2)
 /* resolveSymbols - resolve symbols from the symbol table          */
 /*-----------------------------------------------------------------*/
 ast *
-resolveSymbols (ast * tree)
+resolveSymbols (ast *tree)
 {
   /* walk the entire tree and check for values */
   /* with symbols if we find one then replace  */
@@ -942,7 +942,7 @@ processParms (ast * func, value * defParm, ast ** actParm, int *parmNumber,     
       resultType = RESULT_TYPE_NONE;
 
       /* If it's a char, upcast to int. */
-      if (IS_INTEGRAL (ftype) && (getSize (ftype) < (unsigned) INTSIZE))
+      if (IS_INTEGRAL (ftype) && !IS_BITINT (ftype) && (getSize (ftype) < (unsigned) INTSIZE))
         {
           newType = newAst_LINK (INTTYPE);
         }
@@ -952,12 +952,6 @@ processParms (ast * func, value * defParm, ast ** actParm, int *parmNumber,     
           newType = newAst_LINK (copyLinkChain (ftype));
           DCL_TYPE (newType->opval.lnk) = port->unqualified_pointer;
           resultType = RESULT_TYPE_GPTR;
-        }
-
-      if (IS_STRUCT (ftype))
-        {
-          werrorfl ((*actParm)->filename, (*actParm)->lineno, E_STRUCT_AS_ARG, (*actParm)->opval.val->name);
-          return 1;
         }
 
       if (IS_ARRAY (ftype))
@@ -2656,19 +2650,27 @@ getResultTypeFromType (sym_link * type)
 static ast *
 addCast (ast * tree, RESULT_TYPE resultType, bool promote)
 {
-  sym_link *newLink;
-  bool upCasted = FALSE;
+  sym_link *newlink;
+  bool upCasted = false;
 
   switch (resultType)
     {
     case RESULT_TYPE_NONE:
       /* if thing smaller than int must be promoted to int */
-      if (!promote || getSize (tree->etype) >= INTSIZE)
+      if (!promote || getSize (tree->etype) >= INTSIZE || IS_BITINT (tree->etype))
         /* promotion not necessary or already an int */
         return tree;
+      else if (SPEC_NOUN (tree->etype) == V_BITINTBITFIELD) // Promotes to corresponding _BitInt type
+        {
+           newlink = newLink (SPECIFIER);
+           SPEC_NOUN (newlink) = V_BITINT;
+           SPEC_BITINTWIDTH (newlink) = SPEC_BITINTWIDTH (tree->etype);
+           SPEC_USIGN (newlink) = SPEC_USIGN (tree->etype);
+           break;
+        }
       /* char and bits: promote to int */
-      newLink = newIntLink ();
-      upCasted = TRUE;
+      newlink = newIntLink ();
+      upCasted = true;
       break;
     case RESULT_TYPE_BOOL:
       if (!promote ||
@@ -2678,13 +2680,13 @@ addCast (ast * tree, RESULT_TYPE resultType, bool promote)
              hopefully know everything about promotion rules */
           bitsForType (tree->etype) == 1)
         return tree;
-      newLink = newIntLink ();
-      upCasted = TRUE;
+      newlink = newIntLink ();
+      upCasted = true;
       break;
     case RESULT_TYPE_CHAR:
       if (IS_CHAR (tree->etype) || IS_FLOAT (tree->etype) || IS_FIXED (tree->etype))
         return tree;
-      newLink = newCharLink ();
+      newlink = newCharLink ();
       break;
     case RESULT_TYPE_INT:
     case RESULT_TYPE_GPTR:
@@ -2698,23 +2700,30 @@ addCast (ast * tree, RESULT_TYPE resultType, bool promote)
       /* char: promote to int */
       if (!promote || getSize (tree->etype) >= INTSIZE)
         return tree;
-      newLink = newIntLink ();
-      upCasted = TRUE;
+      newlink = newIntLink ();
+      upCasted = true;
       break;
     case RESULT_TYPE_IFX:
     case RESULT_TYPE_OTHER:
-      if (!promote ||
+      if (!promote || IS_BITINT (tree->etype) ||
           /* return type is ifx, long, float: promote char to int */
           getSize (tree->etype) >= INTSIZE)
         return tree;
-      newLink = newIntLink ();
-      upCasted = TRUE;
+      else if (SPEC_NOUN (tree->etype) == V_BITINTBITFIELD) // Promotes to corresponding _BitInt type
+        {
+           newlink = newLink (SPECIFIER);
+           SPEC_NOUN (newlink) = V_BITINT;
+           SPEC_BITINTWIDTH (newlink) = SPEC_BITINTWIDTH (tree->etype);
+           break;
+        }
+      newlink = newIntLink ();
+      upCasted = true;
       break;
     default:
       return tree;
     }
   tree->decorated = 0;
-  tree = newNode (CAST, newAst_LINK (newLink), tree);
+  tree = newNode (CAST, newAst_LINK (newlink), tree);
   tree->filename = tree->right->filename;
   tree->lineno = tree->right->lineno;
   /* keep unsigned type during cast to smaller type,
@@ -3541,7 +3550,13 @@ decorateType (ast *tree, RESULT_TYPE resultType, bool reduceTypeAllowed)
     else
       resultTypeProp = RESULT_TYPE_OTHER;
 
-    if ((tree->opval.op == '?') && (resultTypeProp != RESULT_TYPE_BOOL) && reduceTypeAllowed)
+    if (tree->opval.op == GENERIC) // Preserve type of controlling expression for _Generic (and don't allocate string argument)
+      {
+        ++noAlloc;
+        dtl = decorateType (tree->left, resultTypeProp, false);
+        --noAlloc;
+      }
+    else if ((tree->opval.op == '?') && (resultTypeProp != RESULT_TYPE_BOOL) && reduceTypeAllowed)
       dtl = decorateType (tree->left, RESULT_TYPE_IFX, reduceTypeAllowed);
     else if ((tree->opval.op == '&') && (!tree->right))
       {
@@ -4744,7 +4759,7 @@ decorateType (ast *tree, RESULT_TYPE resultType, bool reduceTypeAllowed)
       if(!reduceTypeAllowed)
         {
           TETYPE (tree) = getSpec (TTYPE (tree) = computeType (LTYPE (tree), NULL, resultType, tree->opval.op));
-          if(IS_INTEGRAL (TETYPE (tree)) && bitsForType (TETYPE (tree)) < INTSIZE * 8)
+          if(IS_INTEGRAL (TETYPE (tree)) && bitsForType (TETYPE (tree)) < INTSIZE * 8 && !IS_BITINT (TETYPE (tree)))
             {
               // Promote to int for smaller types
               SPEC_NOUN (TETYPE (tree)) = V_INT;
@@ -5524,7 +5539,7 @@ decorateType (ast *tree, RESULT_TYPE resultType, bool reduceTypeAllowed)
                 assoc_type = assoc->left->opval.lnk;
                 checkTypeSanity (assoc_type, "_Generic");
 
-                if (compareType (type, assoc->left->opval.lnk) > 0 && !(SPEC_NOUN (type) == V_CHAR && type->select.s.b_implicit_sign != assoc->left->opval.lnk->select.s.b_implicit_sign))
+                if (compareType (type, assoc_type) > 0 && !(SPEC_NOUN (type) == V_CHAR && type->select.s.b_implicit_sign != assoc_type->select.s.b_implicit_sign))
                   {
                     if (found_expr)
                       {
@@ -7895,7 +7910,7 @@ ast_print (ast * tree, FILE * outfile, int indent)
       if (IS_LITERAL (tree->opval.val->etype))
         {
           fprintf (outfile, "CONSTANT (%p) value = ", tree);
-          if (SPEC_LONGLONG (tree->opval.val->etype))
+          if (SPEC_LONGLONG (tree->opval.val->etype) || IS_BITINT (tree->opval.val->etype))
             {
               unsigned long long ull = ullFromVal (tree->opval.val);
 

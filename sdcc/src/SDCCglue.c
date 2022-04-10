@@ -974,11 +974,9 @@ printIvalType (symbol * sym, sym_link * type, initList * ilist, struct dbuf_s *o
             }
         }
       break;
-    case 8:
-      printIvalVal (oBuf, val, 8, true); // TODO: Print value as comment. Does dbuf_printf support long long even on MSVC?
-      break;
     default:
-      wassertl (0, "Attempting to initialize integer of non-handled size.");
+      printIvalVal (oBuf, val, getSize (type), true);
+      break;
     }
 }
 
@@ -991,7 +989,7 @@ printIvalBitFields (symbol ** sym, initList ** ilist, struct dbuf_s *oBuf)
 {
   symbol *lsym = *sym;
   initList *lilist = *ilist;
-  unsigned long ival = 0;
+  unsigned long long ival = 0;
   unsigned size = 0;
   unsigned bit_start = 0;
   unsigned long int bytes_written = 0;
@@ -1029,7 +1027,7 @@ printIvalBitFields (symbol ** sym, initList ** ilist, struct dbuf_s *oBuf)
               werror (W_LIT_OVERFLOW);
             }
 
-          ival |= (ulFromVal (val) & ((1ul << bit_length) - 1ul)) << bit_start;
+          ival |= (ullFromVal (val) & (0xffffffffffffffffull >> (64 - bit_length))) << bit_start;
           lilist = lilist ? lilist->next : NULL;
         }
       bit_start += bit_length;
@@ -1041,36 +1039,12 @@ printIvalBitFields (symbol ** sym, initList ** ilist, struct dbuf_s *oBuf)
         }
     }
 
-  switch (size)
+  for (unsigned int i = 0; i < size ; i++)
     {
-    case 0:
-      dbuf_tprintf (oBuf, "\n");
-      break;
-
-    case 1:
-      dbuf_tprintf (oBuf, "\t!db !constbyte\n", ival);
+      dbuf_tprintf (oBuf, "\t!db !constbyte\n", (unsigned)(((unsigned long long)ival >> i * 8) & 0xff));
       bytes_written++;
-      break;
-
-    case 2:
-      if (TARGET_PDK_LIKE && !TARGET_IS_PDK16)
-        {
-          dbuf_tprintf (oBuf, "\t!db !constbyte\n", (ival & 0xff));
-          dbuf_tprintf (oBuf, "\t!db !constbyte\n", ((ival >> 8) & 0xff));
-        }
-      else
-        dbuf_tprintf (oBuf, "\t!db !constbyte, !constbyte\n", (ival & 0xff), (ival >> 8) & 0xff);
-      bytes_written += 2;
-      break;
-
-    case 4:
-      dbuf_tprintf (oBuf, "\t!db !constbyte, !constbyte, !constbyte, !constbyte\n",
-                    (ival & 0xff), (ival >> 8) & 0xff, (ival >> 16) & 0xff, (ival >> 24) & 0xff);
-      bytes_written += 4;
-      break;
-    default:
-      wassert (0);
     }
+
   *sym = lsym;
   *ilist = lilist;
 
@@ -2122,7 +2096,7 @@ createInterruptVect (struct dbuf_s *vBuf)
 
 char *iComments1 = {
   ";--------------------------------------------------------\n"
-  "; File Created by SDCC : free open source ANSI-C Compiler\n"
+  "; File Created by SDCC : free open source ISO C Compiler \n"
 };
 
 char *iComments2 = {
@@ -2134,7 +2108,7 @@ char *iComments2 = {
 /* initialComments - puts in some initial comments                 */
 /*-----------------------------------------------------------------*/
 void
-initialComments (FILE * afile)
+initialComments (FILE *afile)
 {
   fprintf (afile, "%s", iComments1);
   fprintf (afile, "; Version " SDCC_VERSION_STR " #%s (%s)\n", getBuildNumber (), getBuildEnvironment ());
@@ -2322,6 +2296,7 @@ glue (void)
   /* initial comments */
   initialComments (asmFile);
 
+  // TODO: Move this stuff from here to port-specific genAssemblerPreamble?
   if (TARGET_IS_S08)
     fprintf (asmFile, "\t.cs08\n");
   else if (TARGET_IS_Z180)
@@ -2332,6 +2307,8 @@ glue (void)
     fprintf (asmFile, "\t.ez80\n");
   else if (TARGET_IS_Z80N)
     fprintf (asmFile, "\t.zxn\n");
+  else if (TARGET_IS_Z80 && options.allow_undoc_inst)
+    fprintf (asmFile, "\t.allow_undocumented\n");
 
   /* print module name */
   tfprintf (asmFile, "\t!module\n", moduleName);
@@ -2446,7 +2423,8 @@ glue (void)
 
   /* copy the data segment */
   fprintf (asmFile, "%s", iComments2);
-  fprintf (asmFile, ";%s ram data\n", mcs51_like ? " internal" : "");
+  if(!TARGET_MOS6502_LIKE)  fprintf (asmFile, ";%s ram data\n", mcs51_like ? " internal" : "");
+  else fprintf (asmFile, "; ZP ram data\n");
   fprintf (asmFile, "%s", iComments2);
   dbuf_write_and_destroy (&data->oBuf, asmFile);
 
@@ -2535,10 +2513,10 @@ glue (void)
     }
 
   /* copy external ram data */
-  if (xdata && mcs51_like)
+  if (xdata && (mcs51_like || TARGET_MOS6502_LIKE ))
     {
       fprintf (asmFile, "%s", iComments2);
-      fprintf (asmFile, "; external ram data\n");
+      fprintf (asmFile, "; uninitialized external ram data\n");
       fprintf (asmFile, "%s", iComments2);
       dbuf_write_and_destroy (&xdata->oBuf, asmFile);
     }
@@ -2556,7 +2534,7 @@ glue (void)
   if (xidata)
     {
       fprintf (asmFile, "%s", iComments2);
-      fprintf (asmFile, "; external initialized ram data\n");
+      fprintf (asmFile, "; initialized external ram data\n");
       fprintf (asmFile, "%s", iComments2);
       dbuf_write_and_destroy (&xidata->oBuf, asmFile);
     }

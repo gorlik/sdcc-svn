@@ -351,6 +351,23 @@ is_cdb_file(class cl_f *f)
   return false;
 }
 
+bool
+is_s19_file(class cl_f *f)
+{
+  const char *n;
+  if (!f)
+    return false;
+  n= f->get_file_name();
+  if (!n ||
+      !*n)
+    return false;
+
+  if (strend(n, ".s19"))
+    return true;
+
+  return false;
+}
+
 /*
   option_name=col_opt:col_opt
 
@@ -690,6 +707,43 @@ strtoscale(const char *scale, const char **units)
     }
 
   return d;
+}
+
+
+/* Custom random number generator */
+
+#define PHI 0x9e3779b9
+
+static uint32_t Q[4096], c = 362436;
+
+void
+srnd(unsigned int seed)
+{
+  int i;
+
+  Q[0] = seed;
+  Q[1] = seed + PHI;
+  Q[2] = seed + PHI + PHI;
+  
+  for (i = 3; i < 4096; i++)
+    Q[i] = Q[i - 3] ^ Q[i - 2] ^ PHI ^ i;
+}
+
+unsigned int
+urnd(void)
+{
+  uint64_t t, a = 18782LL;
+  static uint32_t i = 4095;
+  uint32_t x, r = 0xfffffffe;
+  i = (i + 1) & 4095;
+  t = a * Q[i] + c;
+  c = (t >> 32);
+  x = t + c;
+  if (x < c) {
+    x++;
+    c++;
+  }
+  return (Q[i] = r - x);
 }
 
 
