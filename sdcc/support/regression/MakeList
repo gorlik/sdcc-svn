@@ -22,6 +22,10 @@ EXCLUDE_host += \
 	gte_20040409-2w \
 	gte_20040409-3w
 
+# Fails when compiled with clang on FreeBSD 13.1 on aarch64
+EXCLUDE_host += \
+	gte_20031003-1
+
 # does not compile on ds390
 EXCLUDE_ds390 += \
 	gte_memcpy-1
@@ -241,7 +245,8 @@ EXCLUDE_ARCH_pdk += \
 	gte_pr57131 \
 	gte_pr58984 \
 	gte_pr93434 \
-	gte_shiftdi-2
+	gte_shiftdi-2 \
+	tcc_110_average
 EXCLUDE_pdk15-stack-auto += \
 	gte_991019-1 \
 	gte_pr30185 \

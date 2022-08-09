@@ -1048,7 +1048,10 @@ printIvalBitFields (symbol ** sym, initList ** ilist, struct dbuf_s *oBuf)
 
   for (unsigned int i = 0; i < size ; i++)
     {
-      dbuf_tprintf (oBuf, "\t!db !constbyte\n", (unsigned)(((unsigned long long)ival >> i * 8) & 0xff));
+      if (TARGET_PDK_LIKE && !TARGET_IS_PDK16)
+        dbuf_tprintf (oBuf, "\tret !constbyte\n", (unsigned)(((unsigned long long)ival >> i * 8) & 0xff));
+      else
+        dbuf_tprintf (oBuf, "\t!db !constbyte\n", (unsigned)(((unsigned long long)ival >> i * 8) & 0xff));
       bytes_written++;
     }
 
@@ -1685,6 +1688,8 @@ printIvalPtr (symbol *sym, sym_link *type, initList *ilist, struct dbuf_s *oBuf)
       printFromToType (val->type, type);
     }
 
+  const bool use_ret = TARGET_PDK_LIKE && !TARGET_IS_PDK16;
+
   /* if val is literal */
   if (IS_LITERAL (val->etype))
     {
@@ -1697,7 +1702,12 @@ printIvalPtr (symbol *sym, sym_link *type, initList *ilist, struct dbuf_s *oBuf)
           if (port->use_dw_for_init)
             dbuf_tprintf (oBuf, "\t!dws\n", aopLiteralLong (val, 0, 2));
           else if (port->little_endian)
-            dbuf_tprintf (oBuf, "\t.byte %s,%s\n", aopLiteral (val, 0), aopLiteral (val, 1));
+            {
+              if (use_ret)
+                dbuf_tprintf (oBuf, "\tret %s\n\tret %s\n", aopLiteral (val, 0), aopLiteral (val, 1));
+              else
+                dbuf_tprintf (oBuf, "\t.byte %s,%s\n", aopLiteral (val, 0), aopLiteral (val, 1));
+            }
           else
             dbuf_tprintf (oBuf, "\t.byte %s,%s\n", aopLiteral (val, 1), aopLiteral (val, 0));
           break;
@@ -1729,7 +1739,7 @@ printIvalPtr (symbol *sym, sym_link *type, initList *ilist, struct dbuf_s *oBuf)
 
   size = getSize (type);
 
-  if (TARGET_PDK_LIKE && size == 2)
+  if (use_ret && size == 2)
     {
       if (IN_CODESPACE (SPEC_OCLS (val->etype)))
         {
@@ -2468,7 +2478,7 @@ glue (void)
       fprintf (asmFile, "%s", iComments2);
       fprintf (asmFile, "; Stack segment in internal ram\n");
       fprintf (asmFile, "%s", iComments2);
-      fprintf (asmFile, "\t.area\tSSEG\n" "__start__stack:\n\t.ds\t1\n\n");
+      tfprintf (asmFile, "\t!area\n" "__start__stack:\n\t.ds\t1\n\n", "SSEG");
     }
 
   /* create the idata segment */

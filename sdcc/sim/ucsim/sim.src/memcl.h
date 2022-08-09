@@ -136,13 +136,9 @@ class cl_memory_operator: public cl_base
 {
 public:
   t_mem mask;
-  class cl_memory_operator *next_operator;
   class cl_memory_cell *cell;
 public:
-  cl_memory_operator(class cl_memory_cell *acell/*, t_addr addr*/);
-
-  virtual class cl_memory_operator *get_next(void) { return(next_operator); }
-  virtual void set_next(class cl_memory_operator *next) { next_operator= next;}
+  cl_memory_operator(class cl_memory_cell *acell);
 
   virtual bool match(class cl_hw *the_hw) { return(false); }
   virtual bool match(class cl_brk *brk) { return(false); }
@@ -242,7 +238,8 @@ class cl_memory_cell: public cl_cell_data
  protected:
   uchar width;
   uchar flags;
-  class cl_memory_operator *operators;
+  //class cl_memory_operator *operators;
+  class cl_memory_operator **ops;
  public:
   cl_memory_cell();
   cl_memory_cell(uchar awidth);
@@ -272,7 +269,8 @@ class cl_memory_cell: public cl_cell_data
   virtual t_mem W(t_mem val) { return write(val); }
   virtual t_mem set(t_mem val);
   virtual t_mem download(t_mem val);
-  
+
+  virtual int nuof_ops(void);
   virtual void append_operator(class cl_memory_operator *op);
   virtual void prepend_operator(class cl_memory_operator *op);
   virtual void remove_operator(class cl_memory_operator *op);

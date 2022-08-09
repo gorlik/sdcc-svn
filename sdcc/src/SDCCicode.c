@@ -56,7 +56,7 @@ operand *geniCodeDerefPtr (operand *, int);
 static int isLvaluereq (int lvl);
 static operand *geniCodeCast (sym_link *, operand *, bool);
 
-#define PRINTFUNC(x) void x (struct dbuf_s *dbuf, iCode *ic, char *s)
+#define PRINTFUNC(x) void x (struct dbuf_s *dbuf, const iCode *ic, char *s)
 /* forward definition of ic print functions */
 PRINTFUNC (picGetValueAtAddr);
 PRINTFUNC (picPushValueAtAddr);
@@ -502,9 +502,8 @@ PRINTFUNC (picEndCritical)
 /* piCode - prints one iCode                                       */
 /*-----------------------------------------------------------------*/
 int
-piCode (void *item, FILE * of)
+piCode (const iCode * ic, FILE * of)
 {
-  iCode *ic = item;
   iCodeTable *icTab;
   struct dbuf_s dbuf;
 
@@ -3660,6 +3659,10 @@ geniCodeCall (operand * left, ast * parms, int lvl)
       werror (E_FUNCTION_EXPECTED);
       return operandFromValue (valueFromLit (0), false);
     }
+
+  // C2X unreachable. Just omit the call for now. TODO: Optimize based on this (remove preceding and subsequent icodes, up zo whole basic block when no side effects)
+  if (!IS_FUNCPTR (ftype) && !strcmp(OP_SYMBOL (left)->name, "__builtin_unreachable"))
+    return 0;
 
   // not allow call a critical function
   if (inCriticalPair && FUNC_ISCRITICAL (ftype))

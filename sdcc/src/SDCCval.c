@@ -1247,7 +1247,11 @@ constIntVal (const char *s)
   if (s[0] == '0')
     {
       if (s[1] == 'b' || s[1] == 'B')
-        llval = sepStrToUll (s + 2, &p, 2);
+        {
+          if (!options.std_sdcc && !options.std_c2x)
+            werror (W_BINARY_INTEGER_CONSTANT_C23);
+          llval = sepStrToUll (s + 2, &p, 2);
+        }
       else if (s[1] == 'x' || s[1] == 'X')
         llval = sepStrToUll (s + 2, &p, 16);
       else
@@ -1307,6 +1311,8 @@ constIntVal (const char *s)
       p2 += 2;
       if (strchr (p2, 'l') || strchr (p2, 'L'))
         werror (E_INTEGERSUFFIX, p);
+      else if (!options.std_c2x)
+        werror (W_BITINTCONST_C23);
     }
 
   SPEC_NOUN (val->type) = wb_suffix ? V_BITINT : V_INT;
@@ -1528,6 +1534,23 @@ constBoolVal (bool v, bool reduceType)
     {
       return constIntVal (v ? "1" : "0");
     }
+}
+
+/*-----------------------------------------------------------------*/
+/* constNullptrVal - a value of C2X nullptr_t                      */
+/*-----------------------------------------------------------------*/
+value *
+constNullptrVal (void)
+{
+  value *val = newValue ();     /* alloc space for value   */
+  val->type = val->etype = newLink (SPECIFIER); /* create the specifier */
+  SPEC_SCLS (val->type) = S_LITERAL;
+  SPEC_CONST (val->type) = 1;
+    
+  SPEC_NOUN (val->type) = V_NULLPTR;
+    
+  SPEC_CVAL (val->type).v_uint = 0;
+  return val;
 }
 
 // TODO: Move this function to SDCCutil?
@@ -1954,7 +1977,7 @@ floatFromVal (value * val)
         return (signed char) SPEC_CVAL (val->etype).v_int;
     }
 
-  if (IS_BOOL (val->etype) || IS_BITVAR (val->etype))
+  if (IS_BOOL (val->etype) || IS_NULLPTR (val->etype) || IS_BITVAR (val->etype))
     return SPEC_CVAL (val->etype).v_uint;
 
   if (SPEC_NOUN (val->etype) == V_VOID)
@@ -2123,7 +2146,7 @@ byteOfVal (value *val, int offset)
                (SPEC_CVAL (val->etype).v_int < 0 ? 0xff : 0);
     }
 
-  if (IS_BOOL (val->etype) || IS_BITVAR (val->etype))
+  if (IS_BOOL (val->etype) || IS_NULLPTR (val->etype) || IS_BITVAR (val->etype))
     return offset < 2 ? (SPEC_CVAL (val->etype).v_uint >> shift) & 0xff : 0;
 
   /* we are lost ! */
@@ -2191,7 +2214,7 @@ ullFromLit (sym_link * lit)
         return (signed char) SPEC_CVAL (etype).v_int;
     }
 
-  if (IS_BOOL (etype) || IS_BITVAR (etype))
+  if (IS_BOOL (etype) || IS_NULLPTR (etype) || IS_BITVAR (etype))
     return SPEC_CVAL (etype).v_uint;
 
   if (SPEC_NOUN (etype) == V_VOID)
