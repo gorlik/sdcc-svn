@@ -1,3 +1,62 @@
+2022-08-26 Felix Salfelder <felix AT salfelder.org>
+
+	* regression/ports/pic14/spec.mk:
+	  LDFLAGS & EMU invocation fixes
+
+2022-08-17 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* support/regression/ports/hc08/spec.mk,
+	  support/regression/ports/s08/spec.mk:
+	  Increase regression test timeout slightly, so a passive-cooled Raspi 4B can run the qct_0042-prime regression test in Summer.
+
+2022-08-14 Erik Petrich <epetrich AT ivorytower.norman.ok.us>
+
+	* device/lib/pic16/startup/crt0.c,
+	  device/lib/pic16/startup/crt0i.c,
+	  device/lib/pic16/startup/crt0iz.c:
+	  Update interrupt syntax for new parser
+
+2022-08-10 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* device/include/stdbit.h:
+	  Fix bit and byte utilities find first leading bit functions for ports that don't have _BitInt yet.
+
+2022-08-10 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* doc/sdccman.lyx,
+	  src/SDCC.y:
+	  Document intentional deviation from C2X draft N3047 rules for tag compatibility for unions.
+
+2022-08-09 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/SDCCast.c:
+	  Fix handling of pointers to short, long and long long (without explicit int) in _Generic associations.
+	* device/include/stdckdint.h,
+	  device/lib/incl.mk,
+	  device/lib/ckd_add.c,
+	  device/lib/ckd_mul.c,
+	  device/lib/ckd_sub.c,
+	  doc/sdccman.lyx,
+	  .version:
+	  Checked integer arithmetic for all types except (unsigned) long long, part of RFE #749.
+
+2022-08-09 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/SDCC.y,
+	  .version,
+	  support/valdiag/tests/enum.c:
+	  C2X enum tag compatibility rules, RFE #852.
+
+2022-08-09 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/SDCC.y,
+	  src/SDCCerr.c,
+	  src/SDCCerr.h,
+	  src/SDCCsymt.c,
+	  src/SDCCsymt.h,
+	  support/valdiag/tests/struct.c:
+	  C2X struct / union tag compatibility rules, part of RFE #852.
+
 2022-08-08 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
 
 	* device/include/stdlib.h,
