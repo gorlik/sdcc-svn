@@ -273,6 +273,7 @@ public:
   class cl_analyser_opt *analyser_opt;
   
   t_addr PC, instPC;		// Program Counter
+  class cl_cell32 cPC;		// Cell of PC
   bool inst_exec;		// Instruction is executed
   class cl_ticker *ticks;	// Nr of XTAL clocks
   class cl_ticker *isr_ticks;	// Time in ISRs
@@ -287,6 +288,7 @@ public:
   int brk_counter;		// Number of breakpoints
   class brk_coll *fbrk;		// Collection of FETCH break-points
   class brk_coll *ebrk;		// Collection of EVENT breakpoints
+  class cl_display_list *displays;// Collection of diplayed exprs on break
   class cl_sim *sim;
   //class cl_list *mems;
   class cl_time_measurer *stop_at_time;
@@ -500,7 +502,7 @@ public:
 					  int *bitnr_low);
   virtual t_addr bit_address(class cl_memory *mem,
                              t_addr mem_address,
-                             int bit_number) { return(-1); }
+                             int bit_number) { return(AU(-1)); }
 
   // messages from app to handle and broadcast
   virtual bool handle_event(class cl_event &event);

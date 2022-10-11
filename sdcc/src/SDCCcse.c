@@ -873,6 +873,8 @@ iCode *findBackwardDef(operand *op,iCode *ic)
 static void
 algebraicOpts (iCode * ic, eBBlock * ebp)
 {
+  lineno = ic->lineno; // For error messages
+
   /* we don't deal with the following iCodes
      here */
   if (ic->op == IFX ||
@@ -908,6 +910,7 @@ algebraicOpts (iCode * ic, eBBlock * ebp)
       IS_OP_LITERAL (IC_LEFT (ic)) &&
       !IC_RIGHT (ic))
     {
+      lineno = ic->lineno;
       IC_RIGHT (ic) = operandOperation (IC_LEFT (ic),
                                         IC_RIGHT (ic),
                                         ic->op,
@@ -2242,7 +2245,7 @@ cseBBlock (eBBlock * ebb, int computeOnly, ebbIndex * ebbi)
 
       /* for pcall & ipush we need to add to the useSet */
       if ((ic->op == PCALL ||
-           ic->op == IPUSH ||
+           ic->op == IPUSH || ic->op == IPUSH_VALUE_AT_ADDRESS ||
            ic->op == IPOP ||
            ic->op == SEND) &&
           IS_SYMOP (IC_LEFT (ic)))

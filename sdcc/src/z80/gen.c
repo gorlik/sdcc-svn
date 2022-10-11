@@ -3381,6 +3381,17 @@ aopPut (asmop *aop, const char *s, int offset)
   dbuf_destroy (&dbuf);
 }
 
+/* pop a register pair while not destroying one of the two registers in it (destroying tempreg instead). */
+static void
+poppairwithsavedreg (PAIR_ID pair, short survivingreg, short tempreg)
+{
+  emit2 ("ld %s, %s", regsZ80[tempreg].name, regsZ80[survivingreg].name);
+  regalloc_dry_run_cost += 1;
+  _pop (pair);
+  emit2 ("ld %s, %s", regsZ80[survivingreg].name, regsZ80[tempreg].name);
+  regalloc_dry_run_cost += 1;
+}
+
 // Move, but try not to. Preserves flags. Cannot use xor to zero, since xor resets the carry flag.
 static void
 cheapMove (asmop *to, int to_offset, asmop *from, int from_offset, bool a_dead)
@@ -3397,7 +3408,9 @@ cheapMove (asmop *to, int to_offset, asmop *from, int from_offset, bool a_dead)
           cheapMove (to, to_offset, ASMOP_ZERO, 0, a_dead);
           return;
         }
-      if (aopInReg (to, to_offset, L_IDX) || aopInReg (to, to_offset, H_IDX))
+
+      // Need free a do be able to partially restore a below.
+      if ((aopInReg (to, to_offset, L_IDX) || aopInReg (to, to_offset, H_IDX)) && !a_dead)
         {
           UNIMPLEMENTED;
           return;
@@ -3411,7 +3424,12 @@ cheapMove (asmop *to, int to_offset, asmop *from, int from_offset, bool a_dead)
       regalloc_dry_run_cost += 4;
       spillPair (PAIR_HL);
       cheapMove (to, to_offset, ASMOP_HL, from_offset, a_dead);
-      _pop (PAIR_HL);
+      if (aopInReg (to, to_offset, L_IDX))
+        poppairwithsavedreg (PAIR_HL, H_IDX, A_IDX);
+      else if (aopInReg (to, to_offset, H_IDX))
+        poppairwithsavedreg (PAIR_HL, L_IDX, A_IDX);
+      else
+        _pop (PAIR_HL);
 
       return;
     }
@@ -5148,7 +5166,7 @@ _gbz80_emitAddSubLong (const iCode * ic, bool isAdd)
 static void
 restoreRegs (bool iy, bool de, bool bc, bool hl, const operand *result)
 {
-  bool bInRet, cInRet, dInRet, eInRet, hInRet, lInRet;
+  bool aInRet, bInRet, cInRet, dInRet, eInRet, hInRet, lInRet;
   bool SomethingReturned;
 
   SomethingReturned = result && IS_ITEMP (result) && (OP_SYMBOL_CONST (result)->nRegs || OP_SYMBOL_CONST (result)->spildir)
@@ -5157,6 +5175,7 @@ restoreRegs (bool iy, bool de, bool bc, bool hl, const operand *result)
   if (SomethingReturned)
     {
       bitVect *rv = z80_rUmaskForOp (result);
+      aInRet = bitVectBitValue (rv, A_IDX);
       bInRet = bitVectBitValue (rv, B_IDX);
       cInRet = bitVectBitValue (rv, C_IDX);
       dInRet = bitVectBitValue (rv, D_IDX);
@@ -5167,12 +5186,13 @@ restoreRegs (bool iy, bool de, bool bc, bool hl, const operand *result)
     }
   else
     {
-      bInRet = FALSE;
-      cInRet = FALSE;
-      dInRet = FALSE;
-      eInRet = FALSE;
-      hInRet = FALSE;
-      lInRet = FALSE;
+      aInRet = false;
+      bInRet = false;
+      cInRet = false;
+      dInRet = false;
+      eInRet = false;
+      hInRet = false;
+      lInRet = false;
     }
 
   if (iy)
@@ -5182,31 +5202,27 @@ restoreRegs (bool iy, bool de, bool bc, bool hl, const operand *result)
     {
       if (dInRet && eInRet)
         wassertl (0, "Shouldn't push DE if it's wiped out by the return");
-      else if (dInRet)
-        {
-          /* Only restore E */
-          emit2 ("ld a, d");
-          regalloc_dry_run_cost += 1;
-          _pop (PAIR_DE);
-          emit2 ("ld d, a");
-          regalloc_dry_run_cost += 1;
-        }
-      else if (eInRet && !IS_TLCS90) // TLCS-90 has interrupt settings in f, so we can't pop af unless we did push af before.
+      else if (dInRet && !aInRet)
+        poppairwithsavedreg (PAIR_DE, D_IDX, A_IDX);
+      else if (dInRet && !hInRet)
+        poppairwithsavedreg (PAIR_DE, D_IDX, H_IDX);
+      else if (dInRet && !bInRet)
+        poppairwithsavedreg (PAIR_DE, D_IDX, B_IDX);
+      else if (eInRet && !aInRet && !IS_TLCS90) // TLCS-90 has interrupt settings in f, so we can't pop af unless we did push af before.
         {
           /* Only restore D */
           _pop (PAIR_AF);
           emit2 ("ld d, a");
           regalloc_dry_run_cost += 1;
         }
-      else if (eInRet)
-        {
-          /* Only restore D */
-          emit2 ("ld a, e");
-          regalloc_dry_run_cost += 1;
-          _pop (PAIR_DE);
-          emit2 ("ld e, a");
-          regalloc_dry_run_cost += 1;
-        }
+      else if (eInRet && !aInRet)
+        poppairwithsavedreg (PAIR_DE, E_IDX, A_IDX);
+      else if (eInRet && !lInRet)
+        poppairwithsavedreg (PAIR_DE, E_IDX, L_IDX);
+      else if (eInRet && !cInRet)
+        poppairwithsavedreg (PAIR_DE, E_IDX, C_IDX);
+      else if (dInRet || eInRet)
+        UNIMPLEMENTED;
       else
         _pop (PAIR_DE);
     }
@@ -5215,31 +5231,27 @@ restoreRegs (bool iy, bool de, bool bc, bool hl, const operand *result)
     {
       if (bInRet && cInRet)
         wassertl (0, "Shouldn't push BC if it's wiped out by the return");
-      else if (bInRet)
-        {
-          /* Only restore C */
-          emit2 ("ld a, b");
-          regalloc_dry_run_cost += 1;
-          _pop (PAIR_BC);
-          emit2 ("ld b, a");
-          regalloc_dry_run_cost += 1;
-        }
-      else if (cInRet && !IS_TLCS90)
+      else if (bInRet && !aInRet)
+        poppairwithsavedreg (PAIR_BC, B_IDX, A_IDX);
+      else if (bInRet && !hInRet)
+        poppairwithsavedreg (PAIR_BC, B_IDX, H_IDX);
+      else if (bInRet && !lInRet)
+        poppairwithsavedreg (PAIR_BC, B_IDX, L_IDX);
+      else if (cInRet && !aInRet && !IS_TLCS90)
         {
           /* Only restore B */
           _pop (PAIR_AF);
           emit2 ("ld b, a");
           regalloc_dry_run_cost += 1;
         }
-      else if (cInRet)
-        {
-          /* Only restore B */
-          emit2 ("ld a, c");
-          regalloc_dry_run_cost += 1;
-          _pop (PAIR_BC);
-          emit2 ("ld c, a");
-          regalloc_dry_run_cost += 1;
-        }
+      else if (cInRet && !aInRet)
+        poppairwithsavedreg (PAIR_BC, C_IDX, A_IDX);
+      else if (cInRet && !lInRet)
+        poppairwithsavedreg (PAIR_BC, C_IDX, L_IDX);
+      else if (cInRet && !hInRet)
+        poppairwithsavedreg (PAIR_BC, C_IDX, H_IDX);
+      else if (bInRet || cInRet)
+        UNIMPLEMENTED;
       else
         _pop (PAIR_BC);
     }
@@ -5248,31 +5260,35 @@ restoreRegs (bool iy, bool de, bool bc, bool hl, const operand *result)
     {
       if (hInRet && lInRet)
         wassertl (0, "Shouldn't push HL if it's wiped out by the return");
-      else if (hInRet)
-        {
-          /* Only restore E */
-          emit2 ("ld a, h");
-          regalloc_dry_run_cost += 1;
-          _pop (PAIR_HL);
-          emit2 ("ld h, a");
-          regalloc_dry_run_cost += 1;
-        }
-      else if (lInRet && !IS_TLCS90)
+      else if (hInRet && !aInRet)
+        poppairwithsavedreg (PAIR_HL, H_IDX, A_IDX);
+      else if (hInRet && !bc && !bInRet)
+        poppairwithsavedreg (PAIR_HL, H_IDX, B_IDX);
+      else if (hInRet && !de && !bInRet)
+        poppairwithsavedreg (PAIR_HL, H_IDX, D_IDX);
+      else if (hInRet && !bc && !cInRet)
+        poppairwithsavedreg (PAIR_HL, H_IDX, C_IDX);
+      else if (hInRet && !de && !eInRet)
+        poppairwithsavedreg (PAIR_HL, H_IDX, E_IDX);
+      else if (lInRet && !aInRet && !IS_TLCS90)
         {
           /* Only restore D */
           _pop (PAIR_AF);
           emit2 ("ld h, a");
           regalloc_dry_run_cost += 1;
         }
-      else if (lInRet)
-        {
-          /* Only restore E */
-          emit2 ("ld a, l");
-          regalloc_dry_run_cost += 1;
-          _pop (PAIR_HL);
-          emit2 ("ld l, a");
-          regalloc_dry_run_cost += 1;
-        }
+      else if (lInRet&& !aInRet )
+        poppairwithsavedreg (PAIR_HL, L_IDX, A_IDX);
+      else if (lInRet && !bc && !cInRet )
+        poppairwithsavedreg (PAIR_HL, L_IDX, C_IDX);
+      else if (lInRet && !de && !eInRet )
+        poppairwithsavedreg (PAIR_HL, L_IDX, E_IDX);
+      else if (lInRet && !bc && !bInRet )
+        poppairwithsavedreg (PAIR_HL, L_IDX, B_IDX);
+      else if (lInRet && !de && !dInRet )
+        poppairwithsavedreg (PAIR_HL, L_IDX, D_IDX);
+      else if (lInRet || hInRet)
+        UNIMPLEMENTED;
       else
         _pop (PAIR_HL);
     }

@@ -14,6 +14,12 @@ GTE_TESTS_DIR = $(srcdir)/../gte
 QC_TESTS_DIR = $(srcdir)/../qct
 TCC_TESTS_DIR = $(srcdir)/../tcc
 
+TEST_DIRS = \
+	${TESTS_DIR} \
+	${GTE_TESTS_DIR} \
+	${QC_TESTS_DIR} \
+	${TCC_TESTS_DIR}
+
 vpath %.c.in $(TESTS_DIR)
 vpath %.c $(TESTS_DIR)
 
@@ -172,6 +178,10 @@ GTE_SKIP_TESTS += \
 GTE_SKIP_TESTS += \
 	bitfld-2.c
 
+# Test for GCC implementation-defined floating-point behaviour
+GTE_SKIP_TESTS += \
+	990127-2.c
+	
 # Requires int of at least 32 bits.
 GTE_SKIP_TESTS += \
 	20061101-1.c \
@@ -535,12 +545,6 @@ GTE_SKIP_TESTS += \
 GTE_SKIP_TESTS += \
 	loop-2f.c \
 	loop-2g.c
-
-# SDCC does not yet support long double
-GTE_SKIP_TESTS += \
-	align-2.c \
-	960405-1.c \
-	pr44942.c
 
 # Bug #3398
 GTE_SKIP_TESTS += \
@@ -1061,7 +1065,7 @@ TEST_SRCS = \
 	$(QC_TEST_SRCS) \
 	$(TCC_TEST_SRCS)
 
-MakeList: $(TPL_TEST_STEMS:%=%/stamp) $(TEST_SRCS) Makefile
+MakeList: $(TPL_TEST_STEMS:%=%/stamp) $(TEST_DIRS) $(TEST_SRCS) Makefile
 	@echo
 	@echo populated MakeList...
 	@echo GTE_TEST_STEMS = $(GTE_TESTS:%.c=gte_%) > MakeList
@@ -1093,11 +1097,16 @@ MakeList: $(TPL_TEST_STEMS:%=%/stamp) $(TEST_SRCS) Makefile
 	@echo TEST_STEMS += '$$(QC_TEST_STEMS)' >> MakeList
 	@echo TEST_STEMS += '$$(TCC_TEST_STEMS)' >> MakeList
 
+.PHONY: clean distclean info
+
 clean:
 	rm -f */*.c */*/stamp
 	rm -f *.m4c *.c */stamp
 	rm -rf MakeList
 	rmdir * 2> /dev/null || :
+
+distclean: clean
+	rm -f Makefile
 
 .PRECIOUS: %/stamp
 

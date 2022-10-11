@@ -22,6 +22,10 @@ EXCLUDE_host += \
 	gte_20040409-2w \
 	gte_20040409-3w
 
+# possibly unsupported.
+EXCLUDE_host += \
+	tcc_83_utf8_in_identifiers
+
 # Fails when compiled with clang on FreeBSD 13.1 on aarch64
 EXCLUDE_host += \
 	gte_20031003-1
@@ -252,6 +256,7 @@ EXCLUDE_pdk15-stack-auto += \
 	gte_pr30185 \
 	gte_pr40386
 EXCLUDE_pdk14 += \
+	gte_align-2 \
 	gte_pr102134 \
 	gte_pr27364 \
 	gte_pr30185 \
@@ -373,6 +378,7 @@ EXCLUDE_ARCH_pdk += \
 	tcc_37_sprintf \
 	tcc_38_multiple_array_index \
 	tcc_49_bracket_evaluation \
+	tcc_83_utf8_in_identifiers \
 	tcc_97_utf8_string_literal \
 	tcc_109_float_struct_calling
 EXCLUDE_pdk14 += \

@@ -1,3 +1,265 @@
+2022-10-07 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/gcc/cc1_dummies.cc:
+	  Add two more dummies.
+
+2022-10-03 Benedikt Freisen <b.freisen AT gmx.net>
+
+	* device/include/gcc_attr.h:
+	  Use C23 version macro.
+
+2022-10-01 Philipp Klaus Krause <pkk AT spth.de>
+
+	* support/regression/MakeList:
+	  Disable a test for pdk14 that fails due to lack of memory on the target device.
+
+2022-09-29 Philipp Klaus Krause <pkk AT spth.de>
+
+	* src/stm8/peeph.def:
+	  Use mov in more cases, patch by Basil Hussain.
+	* device/include/assert.h:
+	  Fix static_assert for C11.
+
+2022-09-25 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/SDCCmain.c,
+	  support/cpp/libcpp/init.cc:
+	  Fix handling of c2x standard for preprocessor.
+	* device/include/stdlib.h,
+	  device/lib/Makefile.in,
+	  device/lib/__stdc_count_leading_zeros.c,
+	  device/lib/__stdc_first_leading_one.c,
+	  device/lib/__stdc_first_trailing_oneull.c,
+	  device/lib/_divslonglong.c,
+	  device/lib/_divulonglong.c,
+	  device/lib/_modslonglong.c,
+	  device/lib/_mullonglong.c,
+	  device/lib/_rlslonglong.c,
+	  device/lib/_rlulonglong.c,
+	  device/lib/_rrslonglong.c,
+	  device/lib/_rrulonglong.c,
+	  device/lib/aligned_alloc.c,
+	  device/lib/*/Makefile.in,
+	  device/lib/ds390/lcd390.c,
+	  device/lib/printf_large.c,
+	  device/lib/printfl.c,
+	  device/lib/sprintf.c,
+	  device/lib/vprintf.c:
+	  Fix bug #3496.
+
+2022-09-24 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* device/include/assert.h,
+	  device/include/ctype.h,
+	  device/include/limits.h,
+	  device/include/stdarg.h,
+	  device/include/stdbool.h,
+	  device/include/stddef.h,
+	  device/include/stdlib.h,
+	  device/include/uchar.h,
+	  device/include/setjmp.h,
+	  device/include/stdalign.h,
+	  device/include/stdint.h:
+	  Replace include guards by C23 header version macros.
+
+2022-09-23 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/z80/peep.c:
+	  Improve handling of iyl, iyh in peephole rules, based on patch by Job Bolle.
+
+2022-09-21 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/z80/peep.c:
+	  Handling of immediates in canAssign for z80 and related.
+
+2022-09-20 Maarten Brock <sourceforge.brock AT dse.nl>
+
+	* src/z80/peeph.def: fixed rules 85a, 85b to fix bug #3486,
+	  Thanks Job Bolle
+
+2022-09-19 Felix Salfelder <felix AT salfelder.org>
+
+	* src/SDCCmain.c:
+	  Pass -xc to preprocessor, overriding file-type-by-extension magic.
+
+2022-09-18 Maarten Brock <sourceforge.brock AT dse.nl>
+
+	* debugger/mcs51/cmd.c: applied patch #439,
+	    also applied patch from bug #3485, Thanks Mark Symonds,
+	    also cleaned up many whitespace irregularities
+
+2022-09-17 Felix Salfelder <felix AT salfelder.org>
+
+	* support/regression/MakeList,
+	  support/regression/tcc/83_utf8_in_identifiers.c:
+	  Revive erroneously disabled utf8 test.
+
+2022-09-13 Benedikt Freisen <b.freisen AT gmx.net>
+
+	* doc/sdccman.lyx,
+	  src/ds390/gen.c,
+	  support/regression/tests/gcc-torture-execute-strct-varg-1.c,
+	  support/regression/tests/gcc-torture-execute-va-arg-23.c,
+	  support/regression/tests/gcc-torture-execute-va-arg-4.c:
+	  struct / union parameters on the stack for ds390, copied from mcs51.
+
+2022-09-13 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/gcc/{system,double-int}.h:
+	  Remove wrong/unneeded gmp use.
+
+2022-09-12 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* device/include/tinibios.h,
+	  device/lib/ds390/tinibios.c,
+	  device/lib/ds400/tinibios.c:
+	  Provide function prototypes for tinybios.
+
+2022-09-11 Benedikt Freisen <b.freisen AT gmx.net>
+
+	* doc/sdccman.lyx,
+	  src/SDCC.y,
+	  src/SDCCerr.c,
+	  src/SDCCsymt.c,
+	  support/regression/cases/Makefile.in:
+	  Handle types double and long double in checkTypeSanity.
+
+2022-09-09 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/SDCCsymt.c,
+	  src/SDCCast.c,
+	  support/regression/tests/bug-3481.c:
+	  Fix part of bug #3481.
+
+2022-09-09 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/z80/gen.c:
+	  Fix bug #3480.
+
+2022-09-08 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/libbacktrace/allocfail.sh:
+	  Delete unused file.
+
+2022-09-08 Felix Salfelder <felix AT salfelder.org>
+
+	* device/lib/incl.mk:
+	  Fix %.rel rules. Thanks to Job Bolle, see discussion/1865.
+
+2022-09-08 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/gcc/Makefile.in:
+	  avoid tm-preds.h cleanup once more.
+
+2022-09-07 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/SDCCpeeph.c,
+	  src/z80/peeph.def,
+	  support/regression/tests/bug-3478.c:
+	  Fix bug #3478.
+
+2022-09-06 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/z80/gen.c,
+	  support/regression/tests/bug-3471.c:
+	  Fix bug #3471.
+
+2022-09-06 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/gcc/Makefile.in,
+	  support/cpp/libbacktrace/Makefile.am:
+	  Revisit don't clean no-longer autogenerated files.
+
+2022-09-06 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/SDCCcse.c,
+	  support/regression/tests/bug-3470.c:
+	  Fix part of bug #3470.
+
+2022-09-04 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* Merge cpp branch to trunk.
+
+2022-09-04 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/gcc/hash-table.h:
+	  Revert a compile warning fix.
+
+2022-09-02 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/gcc/cc1_dummies.cc,
+	  support/cpp/gcc/ggc-common.cc,
+	  support/cpp/gcc/hash-map.h,
+	  support/cpp/gcc/hash-table.h,
+	  support/cpp/gcc/vec.h:
+	  Fix compile warnings
+
+2022-09-01 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* support/valdiag/tests/universal.c,
+	  support/valdiag/tests/universal2.c:
+	  Separate out a test that needs to reside in a file on its own, since the diagnostic is emitted even inside #if 0.
+
+2022-08-31 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* support/regression/tests/checkedint.c.in:
+	  Disable test for mcs51 medium memory model, where it fails due to lack of memory.
+
+2022-08-31 Felix Salfelder <felix AT salfelder.org>
+
+	* sdcc/support/cpp/gcc/opts.cc,
+	  sdcc/support/cpp/libcpp/mkdeps.cc:
+	  Test x2.
+
+2022-08-30 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/configure, support/cpp/configure.ac:
+	  Omit gmp/mpfr checks and GCC_TOPLEV_SUBDIRS.
+
+2022-08-23 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/configure, support/cpp/configure.ac,
+	  support/cpp/gcc/configure, support/cpp/gcc/configure.ac:
+	  Reduce diff against upstream gcc.
+
+2022-08-21 Felix Salfelder <felix AT salfelder.org>
+
+	* support/regression/Makefile.in,
+	  support/regression/cases/Makefile.in:
+	  Test summary depends on test set.
+
+2022-08-20 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp/gcc/Makefile.in:
+	  Do not clean no-longer autogenerated files.
+
+2022-08-30 Felix Salfelder <felix AT salfelder.org>
+
+	* support/regression/cases/Makefile.in:
+	  Add distclean rule.
+
+2022-08-30 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* src/SDCCmem.c,
+	  support/regression/tests/bug-3040.c.in:
+	  Fix bug #3073.
+	* support/regression/tests/checkedint.c.in:
+	  Test checked integers, part of RFE #749.
+	* tests/gcc-torture-execute-920711-1.c:
+	  Remove a test that relies on undefined behaviour on signed integer overflow.
+	* src/SDCCcse.c,
+	  support/valdiag/tests/bug-3457.c:
+	  Fix bug #3457.
+	* src/SDCCmem.c,
+	  src/SDCCval.c,
+	  support/valdiag/tests/bug-3031.c:
+	  Fix bug #3383.
+
+2022-08-29 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* support/regression/cases/Makefile.in:
+	  Disable a GCC test that tests for GCC implementation-defined floating-point behaviour.
+
 2022-08-26 Felix Salfelder <felix AT salfelder.org>
 
 	* regression/ports/pic14/spec.mk:
@@ -8,6 +270,28 @@
 	* support/regression/ports/hc08/spec.mk,
 	  support/regression/ports/s08/spec.mk:
 	  Increase regression test timeout slightly, so a passive-cooled Raspi 4B can run the qct_0042-prime regression test in Summer.
+
+2022-08-16 Philipp Klaus Krause <krauseph AT informatik.uni-freiburg.de>
+
+	* doc/sdccman.lyx,
+	  .version,
+	  support/regression/tests/pragma_pedantic_parse_number.c:
+	  Document dropped support for --pedantic-parse-number and #pragma pedantic_parse_number.
+
+2022-08-16 Felix Salfelder <felix AT salfelder.org>
+
+	* support/cpp:
+	  Partially import gcc (12.1.0, 1ea978e3066a),
+	  Isolate, dissect, gcc/cpp,
+	  Create dummy target files,
+	  (Re)add -obj-ext option,
+	  Change # to #line in cpp output,
+	* Makefile.common.in:
+	  Set .DELETE_ON_ERROR
+	* configure.ac, src/Makefile.in:
+	  Obtain svn revision and paste into version.h
+	* configure.ac, Makefile.in, bin/*:
+	  Add Makefile, wrap executables, adjust rules.
 
 2022-08-14 Erik Petrich <epetrich AT ivorytower.norman.ok.us>
 

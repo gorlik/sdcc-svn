@@ -627,6 +627,14 @@ checkTypeSanity (sym_link *etype, const char *name)
       fprintf (stderr, "checking sanity for %s %p\n", name, (void *)etype);
     }
 
+  /* transitional support for double and long double as aliases for float */
+  if (SPEC_NOUN (etype) == V_DOUBLE)
+    {
+      SPEC_NOUN (etype) = V_FLOAT;
+      SPEC_LONG (etype) = 0;
+      werror (W_DOUBLE_UNSUPPORTED);
+    }
+
   if ((SPEC_NOUN (etype) == V_BITINT ||
        SPEC_NOUN (etype) == V_BOOL ||
        SPEC_NOUN (etype) == V_CHAR ||
@@ -3412,9 +3420,18 @@ checkFunction (symbol * sym, symbol * csym)
       werrorfl (sym->fileDef, sym->lineDef, E_FUNC_BODY, sym->name);
       return 0;
     }
-
+  
   /* check the return value type   */
-  if (compareType (csym->type, sym->type, false) <= 0)
+  if (FUNC_NOPROTOTYPE (csym->type))
+    {
+      if (compareType (csym->type->next, sym->type->next, false) <= 0)
+        { 
+          werrorfl (sym->fileDef, sym->lineDef, E_PREV_DECL_CONFLICT, csym->name, "return type", csym->fileDef, csym->lineDef);
+          printFromToType (csym->type->next, sym->type->next);
+          return 0;
+        }
+    }
+  else if (compareType (csym->type, sym->type, false) <= 0)
     {
       werrorfl (sym->fileDef, sym->lineDef, E_PREV_DECL_CONFLICT, csym->name, "type", csym->fileDef, csym->lineDef);
       printFromToType (csym->type, sym->type);
@@ -3510,7 +3527,7 @@ checkFunction (symbol * sym, symbol * csym)
     }
 
   /* if one of them ended we have a problem */
-  if ((exargs && !acargs && !IS_VOID (exargs->type)) || (!exargs && acargs && !IS_VOID (acargs->type)))
+  if (((exargs && !acargs && !IS_VOID (exargs->type)) || (!exargs && acargs && !IS_VOID (acargs->type))) && !FUNC_NOPROTOTYPE (csym->type))
     werror (E_ARG_COUNT);
 
   /* replace with this definition */
