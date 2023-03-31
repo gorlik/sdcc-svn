@@ -18,10 +18,6 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include <map> // BUG?
-#include <iostream>
-#define untested() ( std::cerr <<  "@@#\n@@@:"<< __FILE__ << ":"<< __LINE__ \
-          <<":" << __func__ << "\n" )
 
 #include "config.h"
 #include "system.h"
@@ -48,6 +44,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "file-prefix-map.h"    /* add_*_prefix_map()  */
 
 // #include "../libcpp/internal.h" // BUG
+#define untested() { fprintf (stderr, "@@#\n@@@:%s:%d:%s\n", __FILE__, __LINE__, __func__); }
 
 #ifndef DOLLARS_IN_IDENTIFIERS
 # define DOLLARS_IN_IDENTIFIERS true
@@ -1256,6 +1253,7 @@ c_common_init (void)
      are known.  */
   cpp_init_iconv (parse_in);
 
+#if 0 //sdcpp
   if (version_flag)
     {
       int i;
@@ -1264,6 +1262,7 @@ c_common_init (void)
 	fprintf (stderr, "%02x", executable_checksum[i]);
       putc ('\n', stderr);
     }
+#endif
 
   /* Has to wait until now so that cpplib has its hash table.  */
   init_pragma ();

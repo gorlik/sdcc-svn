@@ -89,18 +89,33 @@ cl_sim::mk_controller(void)
 int
 cl_sim::step(void)
 {
-  if (state & SIM_GO)
+  int res;
+  //if (state & SIM_GO)
     {
       if (steps_done == 0)
-	{
-	  start_at= dnow();
-	}
-      uc->save_hist();
-      if (uc->do_inst(1) == resGO)
+	start_at= dnow();
+
+      res= uc->do_inst(); 
+
+      //if (res < resSTOP)
 	steps_done++;
+	//else
+	{
+	  if (res >= resSTOP)
+	    stop(res);
+	}
+      
       if ((steps_todo > 0) &&
 	  (steps_done >= steps_todo))
 	stop(resSTEP);
+      
+      if (uc->stop_at_time &&
+	  uc->stop_at_time->reached())
+	{
+	  delete uc->stop_at_time;
+	  uc->stop_at_time= NULL;
+	  stop(resBREAKPOINT);
+	}
     }
   return(0);
 }
@@ -126,12 +141,13 @@ cl_sim::do_cmd(char *cmdstr, class cl_console *console)
 void
 cl_sim::start(class cl_console_base *con, unsigned long steps_to_do)
 {
+  class cl_commander_base *cmd= app->get_commander();
   state|= SIM_GO;
   if (con)
     {
       con->set_flag(CONS_FROZEN, true);
-      app->get_commander()->frozen_console= con;
-      app->get_commander()->update_active();
+      cmd->freeze(con);
+      cmd->update_active();
     }
   if (uc)
     start_tick= uc->ticks->get_ticks();
@@ -145,8 +161,8 @@ cl_sim::stop(int reason)
   class cl_commander_base *cmd= app->get_commander();
   class cl_option *o= app->options->get_option("quit");
   unsigned long dt= uc?(uc->ticks->get_ticks() - start_tick):0;
-  class cl_console_base *con= (cmd==NULL)?NULL:(cmd->frozen_console);
-  
+  class cl_console_base *con= (cmd==NULL)?NULL:(cmd->frozen_or_actual());
+
   state&= ~SIM_GO;
   stop_at= dnow();
   if (simif)
@@ -165,27 +181,19 @@ cl_sim::stop(int reason)
       if (o) o->get_value(&e);
       if (e)
 	if (con) con->dd_printf("\007");
-    
-      if (!(b->commands.empty()))
-	{
-	  o= app->options->get_option("echo_script");
-	  e= false;
-	  if (o) o->get_value(&e);
-	  if (e)
-	    if (con) con->dd_cprintf("answer", "%s\n", b->commands.c_str());
-	  application->exec(b->commands);
-	  steps_done= 0;
-	}
+
+      b->breaking();
+      steps_done= 0;
     }
   
   if (!(state & SIM_GO) &&
-      cmd->frozen_console)
+      cmd->frozen())
     {
       fflush(stdout); // Needed to make sure we get the right simulator output order
       
       if (reason == resUSER &&
-	  con && con->input_avail())
-	con->read_line();
+	  cmd->frozen() && cmd->frozen()->input_avail())
+	cmd->frozen()->read_line();
       if (con) con->un_redirect();
       if (con) con->dd_color("debug");
       // Stop message should start with a newline, to avoid mixing this line with previous output from simulated program
@@ -204,7 +212,7 @@ cl_sim::stop(int reason)
 	case resBREAKPOINT:
 	  if (con) {
 	    con->dd_printf("Breakpoint\n");
-	    uc->print_regs(cmd->frozen_console);
+	    uc->print_regs(cmd->frozen());
 	  }
 	  steps_done= 0;
 	  break;
@@ -229,7 +237,7 @@ cl_sim::stop(int reason)
 	    if (con) con->dd_printf("Invalid instruction");
 	    if (uc->rom)
 	      if (con) con->dd_printf(" 0x%04x\n",
-				      MU32(uc->rom->get(uc->PC)));
+				      MU32(uc->rom->get(uc->instPC)));
 	  }
          break;
 	case resSTEP:
@@ -273,13 +281,11 @@ cl_sim::stop(int reason)
       if ((reason == resBREAKPOINT) ||
 	  (reason == resEVENTBREAK))
 	uc->displays->do_display(NULL);	  
-      //if (cmd->actual_console != cmd->frozen_console)
-      if (con) {
+      if (con == cmd->frozen()) {
 	con->set_flag(CONS_FROZEN, false);
-	//cmd->frozen_console->dd_printf("_s_");
 	con->print_prompt();
       }
-      cmd->frozen_console= 0;
+      cmd->freeze(0);
     }
 
   bool q_opt= false;

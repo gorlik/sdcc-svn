@@ -70,6 +70,7 @@ endif
 	  cat - $(BUILDDIR)$(PREFIX)/bin/as2gbmap | \
 	  $(UNIX2DOS) > $(BUILDDIR)$(PREFIX)/bin/as2gbmap.cmd && \
 	  rm $(BUILDDIR)$(PREFIX)/bin/as2gbmap
+	cp $(SRCDIR)$(PREFIX)/support/cpp/gcc/cc1.exe $(BUILDDIR)$(PREFIX)/bin/cc1.exe
 endif
 
 generate-tarball:

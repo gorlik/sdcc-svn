@@ -133,14 +133,6 @@ GTE_SKIP_TESTS += \
 GTE_SKIP_TESTS += \
 	991118-1.c
 
-# SDCC bug #3394
-GTE_SKIP_TESTS += \
-	pr58365.c
-
-# SDCC bug #3400
-GTE_SKIP_TESTS += \
-	pr35163.c
-
 # SDCC does not yet support K&R-style style functions (RFE #450)
 GTE_SKIP_TESTS += \
 	20020227-1.c \
@@ -230,6 +222,10 @@ GTE_SKIP_TESTS += \
 # Test for GCC behaviour when library function is locally overwritten
 GTE_SKIP_TESTS += \
 	20021127-1.c
+
+# Test for GCC implementation-defined behaviour (GIMPLE memory model)
+GTE_SKIP_TESTS += \
+	alias-access-path-1.c
 
 # misc syntax error
 GTE_SKIP_TESTS += \
@@ -546,15 +542,6 @@ GTE_SKIP_TESTS += \
 	loop-2f.c \
 	loop-2g.c
 
-# Bug #3398
-GTE_SKIP_TESTS += \
-	pr24851.c
-
-# Bug #3399
-GTE_SKIP_TESTS += \
-	pr52209.c \
-	pr59388.c
-
 # VLA
 GTE_SKIP_TESTS += \
 	pr41935.c \
@@ -795,7 +782,8 @@ QC_SKIP_TESTS += \
 
 # Takes far too much time for SDCC targets
 QC_SKIP_TESTS += \
-	0041-queen.c
+	0041-queen.c \
+	0042-prime.c
 
 QC_TESTS = $(filter-out $(QC_SKIP_TESTS), $(QC_TESTS_WC))
 

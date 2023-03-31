@@ -288,7 +288,7 @@ static const UNSUPPORTEDOPT unsupportedOptTable[] = {
 static const char *_baseValues[] = {
   "cpp", "sdcpp",
   "cppextraopts", "",
-  /* Path seperator character */
+  /* Path separator character */
   "sep", DIR_SEPARATOR_STRING,
   NULL
 };
@@ -507,7 +507,13 @@ printVersionInfo (FILE * stream)
   for (i = 0; i < NUM_PORTS; i++)
     fprintf (stream, "%s%s", i == 0 ? "" : "/", _ports[i]->target);
 
-  fprintf (stream, " " SDCC_VERSION_STR
+  fprintf (stream,
+#if HAVE_TREEDEC_COMBINATIONS_HPP
+           " "
+#else
+           " TD- "
+#endif
+           SDCC_VERSION_STR
 #ifdef SDCC_SUB_VERSION_STR
            "/" SDCC_SUB_VERSION_STR
 #endif
@@ -1948,8 +1954,8 @@ linkEdit (char **envp)
               for (p = port->linker.crt; NULL != *p; ++p)
                 {
                   /* Try to find where C runtime files are ...
-                     It is very important for this file to be first on the linking proccess
-                     so the areas are set in the correct order, expecially _GSINIT */
+                     It is very important for this file to be first on the linking process
+                     so the areas are set in the correct order, especially _GSINIT */
                   for (s = setFirstItem (libDirsSet); s != NULL; s = setNextItem (libDirsSet))
                     {
                       dbuf_set_length (&crtpath, 0);
@@ -2159,6 +2165,7 @@ preProcess (char **envp)
             dbuf_append_str (&dbuf, "-MD ");
           else
             dbuf_append_str (&dbuf, "-MMD ");
+          dbuf_append_str (&dbuf, "-MF ");
           if (fullDstFileName)
             dbuf_splitFile (fullDstFileName, &dbuf, NULL);
           else
@@ -2744,7 +2751,7 @@ main (int argc, char **argv, char **envp)
 
   _findProcessor (argc, argv);
 
-  /* Initalise the port. */
+  /* Initialise the port. */
   if (port->init)
     port->init ();
 

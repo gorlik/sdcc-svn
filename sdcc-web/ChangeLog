@@ -1,3 +1,17 @@
+2023-01-27 Erik Petrich <epetrich AT ivorytower.norman.ok.us>
+
+	* Add missing closing parenthesis
+
+2023-01-24 Erik Petrich <epetrich AT ivorytower.norman.ok.us>
+
+	* snap.php: don't misrecognize lines beginning with
+	  numbers as failure counts
+
+2022-11-13 Philipp Klaus Krause <pkk AT spth.de>
+
+	* snapshots.desc/aarch64-linux-gnu.desc:
+	  Desciption Debian GNU/Linux on AArch 64 machine.
+
 2020-05-17 Philipp Klaus Krause <pkk AT spth.de>
 
 	* snapshots.desc:

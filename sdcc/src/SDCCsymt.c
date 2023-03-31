@@ -468,6 +468,9 @@ pointerTypes (sym_link * ptr, sym_link * type)
         case S_EEPROM:
           DCL_TYPE (ptr) = EEPPOINTER;
           break;
+        case S_SFR:
+          if (!port->mem.sfrupointer)
+            werror (E_SFR_POINTER);
         default:
           DCL_TYPE (ptr) = port->unqualified_pointer;
           break;
@@ -971,7 +974,7 @@ genSymName (long level)
 /* getSpec - returns the specifier part from a declaration chain    */
 /*------------------------------------------------------------------*/
 sym_link *
-getSpec (sym_link * p)
+getSpec (sym_link *p)
 {
   while (p && !(IS_SPEC (p)))
     p = p->next;
@@ -1694,7 +1697,7 @@ compStructSize (int su, structdef * sdef)
   const int oldlineno = lineno;
 
   if (!sdef->fields)
-    {printf("D\n");
+    {
       werror (E_UNKNOWN_SIZE, sdef->tag);
     }
 
@@ -1789,7 +1792,7 @@ compStructSize (int su, structdef * sdef)
                 {
                   if (TARGET_IS_PIC16 && getenv ("PIC16_PACKED_BITFIELDS"))
                     {
-                      /* if PIC16 && enviroment variable is set, then
+                      /* if PIC16 && environment variable is set, then
                        * tightly pack bitfields, this means that when a
                        * bitfield goes beyond byte alignment, do not
                        * automatically start allocatint from next byte,
@@ -2027,7 +2030,12 @@ checkSClass (symbol *sym, int isProto)
         if (((addr >> n) & 0xFF) < 0x80)
           werror (W_SFR_ABSRANGE, sym->name);
     }
-  else if (TARGET_Z80_LIKE && IS_ABSOLUTE (sym->etype) && SPEC_SCLS (sym->etype) == S_SFR)
+  else if (TARGET_IS_SM83 && IS_ABSOLUTE (sym->etype) && SPEC_SCLS (sym->etype) == S_SFR) // Unlike the otehr z80-like ports, sm83 has I/P in the 0xff00-0xffff range.
+    {
+      if (SPEC_ADDR (sym->etype) < 0xff00 || SPEC_ADDR (sym->etype) > 0xffff)
+        werror (W_SFR_ABSRANGE, sym->name);
+    }
+  else if (TARGET_Z80_LIKE && !TARGET_IS_SM83 && IS_ABSOLUTE (sym->etype) && SPEC_SCLS (sym->etype) == S_SFR)
     {
       if (SPEC_ADDR (sym->etype) > (FUNC_REGBANK (sym->type) ? 0xffff : 0xff))
         werror (W_SFR_ABSRANGE, sym->name);
@@ -2345,10 +2353,10 @@ getAddrspace (sym_link *type)
 /* computeTypeOr - computes the resultant type from two types       */
 /*------------------------------------------------------------------*/
 static sym_link *
-computeTypeOr (sym_link * etype1, sym_link * etype2, sym_link * reType)
+computeTypeOr (sym_link *etype1, sym_link *etype2, sym_link *reType)
 {
   /* sanity check */
-  assert ((IS_CHAR (etype1) || IS_BOOLEAN (etype1)) &&
+  wassert ((IS_CHAR (etype1) || IS_BOOLEAN (etype1)) &&
           (IS_CHAR (etype2) || IS_BOOLEAN (etype2)));
 
   if (SPEC_USIGN (etype1) == SPEC_USIGN (etype2))
@@ -2625,7 +2633,8 @@ computeType (sym_link * type1, sym_link * type2, RESULT_TYPE resultType, int op)
             {
             case '|':
             case '^':
-              return computeTypeOr (etype1, etype2, reType);
+              if (!IS_BITFIELD (etype1) && !IS_BITFIELD (etype2))
+                return computeTypeOr (etype1, etype2, reType);
             case '&':
             case BITWISEAND:
               if (SPEC_USIGN (etype1) != SPEC_USIGN (etype2))
@@ -2738,6 +2747,9 @@ compareFuncType (sym_link * dest, sym_link * src)
       //printf("argCnt = %d\n",argCnt);
       return 0;
     }
+
+  if (IFFUNC_ISBANKEDCALL (dest) != IFFUNC_ISBANKEDCALL (src))
+    return 0;
 
   if (IFFUNC_ISWPARAM (dest) != IFFUNC_ISWPARAM (src))
     {
@@ -3877,7 +3889,10 @@ dbuf_printTypeChain (sym_link * start, struct dbuf_s *dbuf)
                   }
               break;
             case GPOINTER:
-              dbuf_append_str (dbuf, "generic*");
+                if (type->next && !IS_DECL (type->next) && SPEC_ADDRSPACE (type->next))
+                  dbuf_printf (dbuf, "%s*", SPEC_ADDRSPACE (type->next)->name);
+                else
+                  dbuf_append_str (dbuf, "generic*");
               break;
             case CPOINTER:
               dbuf_append_str (dbuf, "code*");
@@ -4350,9 +4365,9 @@ symbol *muldiv[3][4][4];
 symbol *muls16tos32[2];
 /* Dims: BYTE/WORD/DWORD/QWORD SIGNED/UNSIGNED */
 sym_link *multypes[4][2];
-/* Dims: to/from float, BYTE/WORD/DWORD/QWORD, SIGNED/USIGNED */
+/* Dims: to/from float, BYTE/WORD/DWORD/QWORD, SIGNED/UNSIGNED */
 symbol *conv[2][4][2];
-/* Dims: to/from fixed16x16, BYTE/WORD/DWORD/QWORD/FLOAT, SIGNED/USIGNED */
+/* Dims: to/from fixed16x16, BYTE/WORD/DWORD/QWORD/FLOAT, SIGNED/UNSIGNED */
 symbol *fp16x16conv[2][5][2];
 /* Dims: shift left/shift right, BYTE/WORD/DWORD/QWORD, SIGNED/UNSIGNED */
 symbol *rlrr[2][4][2];

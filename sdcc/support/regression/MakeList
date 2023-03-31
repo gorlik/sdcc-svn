@@ -30,6 +30,10 @@ EXCLUDE_host += \
 EXCLUDE_host += \
 	gte_20031003-1
 
+# Fails on GCC 7, which we still use on macOS PPC host.
+EXCLUDE_host += \
+	gte_pr94809
+
 # does not compile on ds390
 EXCLUDE_ds390 += \
 	gte_memcpy-1
@@ -217,19 +221,31 @@ EXCLUDE_mcs51-small-stack-auto += \
 EXCLUDE_mcs51-large-stack-auto += \
 	gte_pr30185
 
+# SDCC Bug #3540
+	EXCLUDE_mcs51-large-stack-auto += \
+	gte_pr58365
+
+# SDCC Bug #3540
+	EXCLUDE_mcs51-small-stack-auto += \
+	gte_pr58365
+
 # Target does not yet support struct/union return
 EXCLUDE_hc08 += \
 	gte_991019-1 \
-	gte_pr30185
+	gte_pr30185 \
+	gte_pr58365
 EXCLUDE_s08 += \
 	gte_991019-1 \
-	gte_pr30185
+	gte_pr30185 \
+	gte_pr58365
 EXCLUDE_ds390 += \
 	gte_991019-1 \
-	gte_pr30185
+	gte_pr30185 \
+	gte_pr58365
 EXCLUDE_uc6502 += \
 	gte_991019-1 \
-	gte_pr30185
+	gte_pr30185 \
+	gte_pr58365
 
 # TODO: Check these
 EXCLUDE_ARCH_pdk += \

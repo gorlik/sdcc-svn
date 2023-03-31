@@ -7,6 +7,7 @@
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "bitmap.h"
 
 #include "tree-core.h"
 #include "langhooks.h"
@@ -17,11 +18,22 @@
 #include "substring-locations.h"
 #include "pass_manager.h"
 
+void bitmap_obstack_initialize(bitmap_obstack*)
+{
+}
 void bitmap_obstack_free(bitmap_head*)
 { SDCPP_DUMMY_FCT();
 }
 void bitmap_obstack_release(bitmap_obstack*)
 { SDCPP_DUMMY_FCT();
+}
+bitmap bitmap_alloc(bitmap_obstack*)
+{
+  static bitmap bogus_bitmap;
+  return bogus_bitmap;
+}
+void init_eh(void)
+{
 }
 tree build_tree_list(tree_node*, tree_node*)
 { SDCPP_DUMMY_FCT();
@@ -162,7 +174,7 @@ bool lang_GNU_C()
 {
 	return true;
 }
-void lhd_append_data(void const*, unsigned long, void*)
+void lhd_append_data(void const*, size_t, void*)
 { SDCPP_DUMMY_FCT();
 }
 void lhd_begin_section(char const*)

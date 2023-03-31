@@ -1108,12 +1108,10 @@ static int aggregateIsAutoVar = 0;
 /* createIvalStruct - generates initial value for structures       */
 /*-----------------------------------------------------------------*/
 static ast *
-createIvalStruct (ast * sym, sym_link * type, initList * ilist, ast * rootValue)
+createIvalStruct (ast *sym, sym_link *type, initList *ilist, ast *rootValue)
 {
   ast *rast = NULL;
   ast *lAst;
-  symbol *sflds, *old_sflds, *ps;
-  initList *iloop;
   sym_link *etype = getSpec (type);
 
   if (ilist && ilist->type != INIT_DEEP)
@@ -1122,62 +1120,68 @@ createIvalStruct (ast * sym, sym_link * type, initList * ilist, ast * rootValue)
       return NULL;
     }
 
-  iloop = ilist ? ilist->init.deep : NULL;
+  initList *iloop = ilist ? ilist->init.deep : NULL;
 
-  for (sflds = SPEC_STRUCT (type)->fields; ; sflds = sflds->next)
+  set *initialized_fields = newSet ();
+
+  // Handle designated initializers first.
+  for (;iloop && iloop->designation; iloop = iloop->next)
     {
+      symbol *sflds;
+
+      if (iloop->designation->type != DESIGNATOR_STRUCT)
+        {
+          werrorfl (iloop->filename, iloop->lineno, E_BAD_DESIGNATOR);
+          break;
+        }
+      else // Find this designated element
+        {
+          sflds = findStructField(SPEC_STRUCT (type)->fields, iloop->designation->designator.tag);
+          if (sflds)
+            {
+              if (iloop->designation->next)
+                {
+                  iloop = moveNestedInit(iloop);
+                }
+            }
+          else
+            {
+              werrorfl (iloop->filename, iloop->lineno, E_NOT_MEMBER,
+                        iloop->designation->designator.tag->name);
+              break;
+            }
+        }
+      
+      sflds->implicit = 1;
+      lAst = newNode (PTR_OP, newNode ('&', sym, NULL), newAst_VALUE (symbolVal (sflds)));
+      lAst = decorateType (resolveSymbols (lAst), RESULT_TYPE_NONE, true);
+      rast = decorateType (resolveSymbols (createIval (lAst, sflds->type, iloop, rast, rootValue, 1)), RESULT_TYPE_NONE, true);
+      addSet (&initialized_fields, sflds);
+
+      if (SPEC_STRUCT (type)->type == UNION)
+        goto release;
+    }
+
+  // Handle the rest and fill in the gaps.
+  for (symbol *sflds = SPEC_STRUCT (type)->fields; sflds; sflds = sflds->next)
+    {
+      if (isinSet (initialized_fields, sflds)) // Already initalized by designated initializer
+        continue;
+
       /* skip past unnamed bitfields */
       if (sflds && IS_BITFIELD (sflds->type) && SPEC_BUNNAMED (sflds->etype))
         continue;
 
-      old_sflds = sflds;
-      /* designated initializer? */
-      if (iloop && iloop->designation)
-        {
-          if (iloop->designation->type != DESIGNATOR_STRUCT)
-            {
-              werrorfl (iloop->filename, iloop->lineno, E_BAD_DESIGNATOR);
-            }
-          else /* find this designated element */
-            {
-              sflds = findStructField(SPEC_STRUCT (type)->fields,
-                                      iloop->designation->designator.tag);
-              if (sflds)
-                {
-                  if (iloop->designation->next)
-                    {
-                      iloop = moveNestedInit(iloop);
-                    }
-                }
-              else
-                {
-                  werrorfl (iloop->filename, iloop->lineno, E_NOT_MEMBER,
-                            iloop->designation->designator.tag->name);
-                  sflds = SPEC_STRUCT (type)->fields; /* fixup */
-                }
-            }
-        }
-
       /* if we have come to end */
-      if (!sflds)
-        break;
       if (!iloop && (!AST_SYMBOL (rootValue)->islocal || SPEC_STAT (etype)))
         break;
-
-      if (aggregateIsAutoVar && (SPEC_STRUCT (type)->type != UNION))
-        for (ps = old_sflds; ps != sflds && ps != NULL; ps = ps->next)
-          {
-            ps->implicit = 1;
-            lAst = newNode (PTR_OP, newNode ('&', sym, NULL), newAst_VALUE (symbolVal (ps)));
-            lAst = decorateType (resolveSymbols (lAst), RESULT_TYPE_NONE, true);
-            rast = decorateType (resolveSymbols (createIval (lAst, ps->type, NULL, rast, rootValue, 1)), RESULT_TYPE_NONE, true);          
-          }
 
       /* initialize this field */
       sflds->implicit = 1;
       lAst = newNode (PTR_OP, newNode ('&', sym, NULL), newAst_VALUE (symbolVal (sflds)));
       lAst = decorateType (resolveSymbols (lAst), RESULT_TYPE_NONE, true);
       rast = decorateType (resolveSymbols (createIval (lAst, sflds->type, iloop, rast, rootValue, 1)), RESULT_TYPE_NONE, true);
+      addSet (&initialized_fields, sflds);
       iloop = iloop ? iloop->next : NULL;
 
       /* Unions can only initialize a single field */
@@ -1193,6 +1197,9 @@ createIvalStruct (ast * sym, sym_link * type, initList * ilist, ast * rootValue)
       else
         werrorfl (sym->filename, sym->lineno, E_INIT_COUNT);
     }
+
+release:
+  deleteSet (&initialized_fields);
 
   return rast;
 }
@@ -1767,7 +1774,7 @@ processBlockVars (ast * tree, int *stack, int action)
 /*                 expression                                  */
 /*-------------------------------------------------------------*/
 bool
-constExprTree (ast * cexpr)
+constExprTree (ast *cexpr)
 {
   if (!cexpr)
     {
@@ -1830,6 +1837,10 @@ constExprTree (ast * cexpr)
       if (cexpr->opval.op == '&')
         {
           return TRUE;
+        }
+      if (cexpr->opval.op == PTR_OP && !IS_ARRAY (TTYPE (cexpr)))
+        {
+          return FALSE;
         }
       if (cexpr->opval.op == CALL || cexpr->opval.op == PCALL)
         {
@@ -2732,8 +2743,8 @@ addCast (ast * tree, RESULT_TYPE resultType, bool promote)
     default:
       return tree;
     }
-  tree->decorated = 0;
   tree = newNode (CAST, newAst_LINK (newlink), tree);
+  tree->decorated = 0;
   tree->filename = tree->right->filename;
   tree->lineno = tree->right->lineno;
   /* keep unsigned type during cast to smaller type,
@@ -3883,7 +3894,7 @@ decorateType (ast *tree, RESULT_TYPE resultType, bool reduceTypeAllowed)
             return decorateType (otree, RESULT_TYPE_NONE, reduceTypeAllowed);
 
           /* if right is a literal and has the same size with left, 
-             then also sync their signess to avoid unecessary cast */
+             then also sync their signedness to avoid unnecessary cast */
           if (IS_LITERAL (RTYPE (tree)) && getSize (RTYPE (tree)) == getSize (LTYPE (tree)))
             SPEC_USIGN (RTYPE (tree)) = SPEC_USIGN (LTYPE (tree));
 
@@ -3912,9 +3923,9 @@ decorateType (ast *tree, RESULT_TYPE resultType, bool reduceTypeAllowed)
           goto errorTreeReturn;
         }
         
-      if ((TARGET_Z80_LIKE || TARGET_PDK_LIKE) && SPEC_SCLS (LETYPE (tree)) == S_SFR)
+      if (SPEC_SCLS (LETYPE (tree)) == S_SFR && !port->mem.sfrupointer)
         {
-          werror (W_SFR_ADDRESS);
+          werror (E_SFR_POINTER);
         }
 
       if (LETYPE (tree) && SPEC_SCLS (tree->left->etype) == S_REGISTER)
@@ -4140,7 +4151,7 @@ decorateType (ast *tree, RESULT_TYPE resultType, bool reduceTypeAllowed)
         }
 
       /* if right is a literal and has the same size with left, 
-         then also sync their signess to avoid unecessary cast */
+         then also sync their signedness to avoid unnecessary cast */
       if (IS_LITERAL (RTYPE (tree)) && getSize (RTYPE (tree)) == getSize (LTYPE (tree)))
         SPEC_USIGN (RTYPE (tree)) = SPEC_USIGN (LTYPE (tree));
 
@@ -5665,7 +5676,7 @@ decorateType (ast *tree, RESULT_TYPE resultType, bool reduceTypeAllowed)
 
       /*------------------------------------------------------------------*/
       /*----------------------------*/
-      /*      straight assignemnt   */
+      /*      straight assignment   */
       /*----------------------------*/
     case '=':
       /* cannot be an array */
@@ -5911,7 +5922,7 @@ decorateType (ast *tree, RESULT_TYPE resultType, bool reduceTypeAllowed)
     case PARAM:
       werrorfl (tree->filename, tree->lineno, E_INTERNAL_ERROR, __FILE__, __LINE__, "node PARAM shouldn't be processed here");
       /* but in processParms() */
-      return tree;
+      goto errorTreeReturn;
     case INLINEASM:
       formatInlineAsm (tree->values.inlineasm);
       TTYPE (tree) = TETYPE (tree) = NULL;
@@ -7725,7 +7736,7 @@ skipall:
   processBlockVars (body, &stack, DEALLOCATE);
   if (!fatalError)
     outputDebugStackSymbols ();
-  /* deallocate paramaters */
+  /* deallocate parameters */
   deallocParms (FUNC_ARGS (name->type));
 
   if (IFFUNC_ISREENT (name->type))
@@ -8419,7 +8430,7 @@ ast_print (ast * tree, FILE * outfile, int indent)
 
     /*------------------------------------------------------------------*/
     /*----------------------------*/
-    /*      straight assignemnt   */
+    /*      straight assignment   */
     /*----------------------------*/
     case '=':
       fprintf (outfile, "ASSIGN(=) (%p) type (", tree);
