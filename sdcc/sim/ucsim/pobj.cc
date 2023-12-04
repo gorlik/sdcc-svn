@@ -33,6 +33,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 
 #include "pstr.h"
 /*#include "pobjt.h"*/
@@ -173,7 +174,7 @@ cl_base::first_child(void)
   if (!children ||
       children->count == 0)
     return(0);
-  return(dynamic_cast<class cl_base *>(children->object_at(0)));
+  return (class cl_base *)(children->object_at(0));
 }
 
 class cl_base *
@@ -201,7 +202,7 @@ cl_base::pass_event_down(class cl_event &event)
   for (i= 0; i < children->count; i++)
     {
       class cl_base *child=
-	dynamic_cast<class cl_base *>(children->object_at(i));
+	(class cl_base *)(children->object_at(i));
       if (child)
 	{
 	  child->handle_event(event);

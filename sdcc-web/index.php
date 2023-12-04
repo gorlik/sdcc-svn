@@ -5,7 +5,7 @@
     <meta name="keywords" content="68hc08 8032 8051 ansi c compiler assembler CPU DS390 embedded development Floating Point Arithmetic free Freescale GPL HC08 inline Intel ISO/IEC 9899:1990 Linux MAC OS X OSX manual Maxim mcs51 Microchip microcontroller open source PIC Unix Windows XP Z80 Zilog TLCS-90 STMicroelectronics STM8" />
     <title>SDCC - Small Device C Compiler</title>
     <link type="text/css" href="styles/style.css" rel="stylesheet" />
-    <link rel="shortcut icon" type="image/x-icon" href="/images/sdcc.ico" />
+    <link rel="icon" type="image/svg+xml" href="/images/sdcc.svg">
   </head>
   <body link="teal" vlink="#483d8b">
     <div align="left">
@@ -19,7 +19,7 @@
 
             <h2>What is SDCC?</h2>
 
-            <p><b>SDCC</b> is a <b><i>retargettable, optimizing Standard C (ANSI C89, ISO C99, ISO C11) compiler suite</i></b> that
+            <p><b>SDCC</b> is a <b><i>retargettable, optimizing Standard C (ANSI C89, ISO C99, ISO C11, ISO C23) compiler suite</i></b> that
               targets the <b><i>Intel MCS51 </i></b> based microprocessors <b><i>(8031, 8032, 8051, 8052, etc.)</i></b>,
               <b><i>Maxim</i></b> (formerly <b><i>Dallas</i></b>) <b><i>DS80C390</i></b> variants,
               <b><i>Freescale</i></b> (formerly <b><i>Motorola</i></b>) <b><i>HC08</i></b> based <b><i>(hc08, s08)</i></b>,
@@ -42,7 +42,7 @@
               <li><b>sdcc</b> <i>C compiler</i>, originally written by Sandeep Dutta; (GPL). Some of the features include:
               <ul>
                 <li>extensive MCU specific language extensions, allowing effective use of the underlying hardware.</li>
-                <li>a host of standard optimizations such as <i>global sub expression
+                <li>a host of standard optimizations such as <i>global subexpression
                   elimination, loop optimizations (loop invariant, strength reduction of induction
                   variables and loop reversing), constant folding </i>and<i> propagation,
                   copy propagation, dead code elimination and jump tables for 'switch' statements.</i></li>
@@ -50,8 +50,8 @@
                 <li>adaptable MCU specific backend that should be well suited for other 8 bit MCUs</li>
                 <li>independent rule based peep hole optimizer.</li>
                 <li>a full range of data types: <b>char</b> (<i>8</i> bits, 1 byte), <b>short</b> (<i>16</i> bits, 2 bytes),
-                  <b>int</b> (<i>16</i> bits, 2 bytes), <b>long</b> (<i>32</i> bit, 4 bytes), <b>long long</b> (<i>64</i> bit, 8 bytes), <b>float</b> (4 byte IEEE) and
-                  <b>_Bool</b>/<b>bool</b>.</li>
+                  <b>int</b> (<i>16</i> bits, 2 bytes), <b>long</b> (<i>32</i> bit, 4 bytes), <b>long long</b> (<i>64</i> bit, 8 bytes), <b>float</b> (4 byte IEEE),
+                  <b>_Bool</b>/<b>bool</b> and <b>_BitInt</b>.</li>
                 <li>the ability to add inline assembler code anywhere in a function.</li>
                 <li>the ability to report on the complexity of a function to help decide what should be re-written in assembler.</li>
                 <li>a good selection of automated regression tests.</li>
@@ -67,33 +67,37 @@
             
             <h2><a name="News"></a>News</h2>
 
-            <p><i><b>Mar 8th, 2022: SDCC 4.2.0 released.</b></i></p>
-            <p>A new release of SDCC, the portable optimizing compiler for STM8, MCS-51, DS390, HC08, S08, Z80, Z180, Rabbit, SM83, eZ80 in Z80 mode, Z80N, TLCS-90, 6502, Padauk and PIC microprocessors is now available.
+            <p><i><b>Jun 7th, 2023: SDCC 4.3.0 released.</b></i></p>
+            <p>A new release of SDCC, the portable optimizing compiler for STM8, MCS-51, DS390, HC08, S08, Z80, Z180, Rabbit, SM83, eZ80 in Z80 mode, Z80N, TLCS-90, MOS 6502, Padauk and PIC microprocessors is now available.
               (<a href="http://sdcc.sourceforge.net" target="_new">http://sdcc.sourceforge.net</a>).
-              Sources, documentation and binaries for GNU/Linux amd64, Windows amd64, macOS amd64 and Windows x86 are available.</p>
-            <p>SDCC 4.2.0 New Feature List:</p>
+              Sources, documentation and binaries for GNU/Linux amd64, Windows amd64, macOS amd64 are available.</p>
+            <p>SDCC 4.3.0 New Feature List:</p>
             <ul>
-              <li>C23 memset_explicit</li>
-              <li>Support for --oldralloc has been removed from the z80, z180, tlcs90, z80n, ez80_z80, r2k, r2ka, r3ka backends.</li>
-              <li>gbz80 port now uses more efficient block-initalization of global variables (users of a custom crt0 need to adapt theirs).</li>
-              <li>Full support for __z88dk_callee for the z80, z180, gbz80, tlcs90, z80n, ez80_z80, r2k, r2ka, r3ka, stm8 backends.</li>
-              <li>Support for __raisonance, __iar and __cosmic calling conventions for stm8.</li>
-              <li>Support for a new __sdcccall(1) calling convention in the stm8 port AS NEW DEFAULT.</li>
-              <li>Support for a new __sdcccall(1) calling convention in the gbz80 port AS NEW DEFAULT.</li>
-              <li>Support for a new __sdcccall(1) calling convention in the z80, z80n and z180 ports AS NEW DEFAULT.</li>
-              <li>Support for a new __sdcccall(1) calling convention in the r2k, r2ka, r3k, tlcs90 and ez80_z80 ports.</li>
-              <li>Removed support for --profile for gbz80, z80, z180, tlcs90, z80n, ez80_z80, r2k, r2ka, r3ka backends.</li>
-              <li>The z80n port Z80N Core minimum version has been raised from 1.0 to 2.0.</li>
-              <li>Improved rematerialization support in the stm8, gbz80, z80, z180, tlcs90, z80n, ez80_z80, r2k, r2ka, r3ka backends.</li>
-              <li>The gbz80 port was renamed to sm83.</li>
-              <li>New in-development mos6502 port.</li>
+              <li>C2X bit-precise integer types and bit-fields thereof for (except for pic14, pic16).</li>
+              <li>Added all new general mnemonics from ASxxxx 5.40 except for .bank and enabled for all ports</li>
+              <li>sm83: sdasgb now can output cycles in listing and sz80 has accurate cycles for this processor except for branching</li>
+              <li>struct / union return (except for ds390, hc08, s08, mos6502, pic14, pic16).</li>
+              <li>div standard library function family.</li>
+              <li>struct / union parameters (except for hc08, s08, mos6502, pic14, pic16).</li>
+              <li>C2X nullptr.</li>
+              <li>Many fixes for the type system and _Generic.</li>
+              <li>Adopted more of GCC, QuickC and tinycc tests.</li>
+              <li>C2X char8_t.</li>
+              <li>C2X memalignment.</li>
+              <li>C2X unreachable.</li>
+              <li>C2X typeof, typeof_unqual.</li>
+              <li>C2X auto.</li>
+              <li>C2X keywords bool, true, false, alignas, alignof, static_assert.</li>
+              <li>C90-C17 function declarators without prototypes.</li>
+              <li>C99 variably modified types.</li>
+              <li>C2X bit and byte utilities.</li>
+              <li>call_once.</li>
+              <li>_sdcc_external_startup renamed to __sdcc_external_startup and supported for all ports.</li>
+              <li>makeshift support for long double as another alias for float.</li>
             </ul>
-            <p>Numerous other new features and bug fixes are included as well.</p>
-            <p>You can download the release from:<br />
-              <a href="https://sourceforge.net/projects/sdcc/files/">https://sourceforge.net/projects/sdcc/files/</a></p>
 
-            <p><i><b>Feb 27th, 2022: SDCC 4.2.0 RC2 released.</b></i></p>
-            <p>SDCC 4.2.0 Release Candidate 2 source, doc and binary packages for amd64 GNU/Linux, 32 and 64 bit Windows and amd64 macOS are available in corresponding folders at:
+            <p><i><b>Junb 26th, 2023: SDCC 4.3.0 RC1 released.</b></i></p>
+            <p>SDCC 4.3.0 Release Candidate 1 source, doc and binary packages for amd64 GNU/Linux, 32 and 64 bit Windows and amd64 macOS are available in corresponding folders at:
               <a href="http://sourceforge.net/projects/sdcc/files/">
               http://sourceforge.net/projects/sdcc/files/</a>.</p>
 
@@ -101,11 +105,12 @@
 
             <h2><a name="Platforms"></a>What Platforms are Supported?</h2>
 
-            <p><b>Linux - x86</b>, <b>Microsoft Windows - x86</b>, <b>Microsoft Windows - x86_64</b> and <b>Mac OS X</b>
+            <p><b>GNU/Linux on amd64</b>, <b>GNU/Linux on x86</b>, <b>Microsoft Windows on amd64</b>, and <b>macOS on amd64</b>
               are the primary, so called "officially supported" platforms.</p>
-            <p><b>SDCC</b> compiles natively on <b>Linux</b> and <b>Mac OS X</b>
+            <p><b>SDCC</b> compiles natively on <b>GNU/Linux</b> and <b>macOS</b>
               using <a href="http://www.gnu.org">gcc</a>. <b>Windows</b> release and snapshot builds are made by
               <b>cross compiling to mingw32</b> on a Linux host.</p>
+            <p>SDCC is known to also work on at least GNU/Linux on aarch64, GNU/Linux on ppc64, FreeBSD on aarch64.</p>
             <p><b>Windows 9x/NT/2000/XP/Vista/7/8</b> users are
               recommended to use Cygwin (<a href="http://sources.redhat.com/cygwin/">http://sources.redhat.com/cygwin/</a>)
               or may try the unsupported Microsoft Visual C++ build scripts.</p>
@@ -181,10 +186,8 @@
                 Bug Reporting</a> - if you have a problem using SDCC, we need to
                 hear about it. Please attach <b>code to reproduce the problem</b>,
                 and be sure to provide your email address so a developer can contact
-                you if they need more information to investigate and fix the bug.</li>
-              <li><a href="https://sourceforge.net/p/sdcc/webdocs/new/">
-                Website/Documentation Issues</a> - Please report erroneous, missing or outdated
-                information</li>
+                you if they need more information to investigate and fix the bug.
+                Also report erroneous, missing or outdated documentation here.</li>
               <li><a href="https://sourceforge.net/p/sdcc/discussion/1864/">
                 SDCC Message Forum</a> - an account on Sourceforge is needed if you're going to
                 post and reply. Short easy online fill-in the blanks.</li>
@@ -244,30 +247,35 @@
 
             <h2><a name="Past_news"></a>Past news</h2>
 
-            <p><i><b>Feb 22nd, 2022: SDCC 4.2.0 RC1 released.</b></i></p>
-            <p>SDCC 4.2.0 Release Candidate 1 source, doc and binary packages for amd64 GNU/Linux, 32 and 64 bit Windows and amd64 macOS are available in corresponding folders at:
-              <a href="http://sourceforge.net/projects/sdcc/files/">
-              http://sourceforge.net/projects/sdcc/files/</a>.</p>
-
-            <p><i><b>Mar 8th, 2021: SDCC 4.1.0 released.</b></i></p>
-            <p>A new release of SDCC, the portable optimizing compiler for 8051, DS390, Z80, Z180, Rabbit 2000, GBZ80, eZ80, TLCS-90,
-              HC08, STM8, Padauk and PIC microprocessors is now available
+            <p><i><b>Mar 8th, 2022: SDCC 4.2.0 released.</b></i></p>
+            <p>A new release of SDCC, the portable optimizing compiler for STM8, MCS-51, DS390, HC08, S08, Z80, Z180, Rabbit, SM83, eZ80 in Z80 mode, Z80N, TLCS-90, 6502, Padauk and PIC microprocessors is now available.
               (<a href="http://sdcc.sourceforge.net" target="_new">http://sdcc.sourceforge.net</a>).
               Sources, documentation and binaries for GNU/Linux amd64, Windows amd64, macOS amd64 and Windows x86 are available.</p>
-            <p>SDCC 4.1.0 New Feature List:</p>
+            <p>SDCC 4.2.0 New Feature List:</p>
             <ul>
-              <li>New z80n port for the Spectrum Next CPU (a Z80 variant).</li>
-              <li>Much better register allocation in the gbz80 backend.</li>
-              <li>Workarounds for Rabbit wait state bugs in the r2k backend.</li>
-              <li>New r2ka port to better support Rabbit 2000A, 2000B, 2000C, 3000.</li>
-              <li>Default crt0 and --data-loc for Rabbits suitable for typical Rabbit hardware configurations, such as the RCMs.</li>
-              <li>Many improvements in code generation for z80 and related ports.</li>
-              <li>Rabbit register definition headers for Rabbit 2000, 2000A, 2000B, 2000C, 3000, 3000A.</li>
-              <li> C23 digit separators.</li>
+              <li>C23 memset_explicit</li>
+              <li>Support for --oldralloc has been removed from the z80, z180, tlcs90, z80n, ez80_z80, r2k, r2ka, r3ka backends.</li>
+              <li>gbz80 port now uses more efficient block-initalization of global variables (users of a custom crt0 need to adapt theirs).</li>
+              <li>Full support for __z88dk_callee for the z80, z180, gbz80, tlcs90, z80n, ez80_z80, r2k, r2ka, r3ka, stm8 backends.</li>
+              <li>Support for __raisonance, __iar and __cosmic calling conventions for stm8.</li>
+              <li>Support for a new __sdcccall(1) calling convention in the stm8 port AS NEW DEFAULT.</li>
+              <li>Support for a new __sdcccall(1) calling convention in the gbz80 port AS NEW DEFAULT.</li>
+              <li>Support for a new __sdcccall(1) calling convention in the z80, z80n and z180 ports AS NEW DEFAULT.</li>
+              <li>Support for a new __sdcccall(1) calling convention in the r2k, r2ka, r3k, tlcs90 and ez80_z80 ports.</li>
+              <li>Removed support for --profile for gbz80, z80, z180, tlcs90, z80n, ez80_z80, r2k, r2ka, r3ka backends.</li>
+              <li>The z80n port Z80N Core minimum version has been raised from 1.0 to 2.0.</li>
+              <li>Improved rematerialization support in the stm8, gbz80, z80, z180, tlcs90, z80n, ez80_z80, r2k, r2ka, r3ka backends.</li>
+              <li>The gbz80 port was renamed to sm83.</li>
+              <li>New in-development mos6502 port.</li>
             </ul>
             <p>Numerous other new features and bug fixes are included as well.</p>
             <p>You can download the release from:<br />
               <a href="https://sourceforge.net/projects/sdcc/files/">https://sourceforge.net/projects/sdcc/files/</a></p>
+
+            <p><i><b>Feb 27th, 2022: SDCC 4.2.0 RC2 released.</b></i></p>
+            <p>SDCC 4.2.0 Release Candidate 2 source, doc and binary packages for amd64 GNU/Linux, 32 and 64 bit Windows and amd64 macOS are available in corresponding folders at:
+              <a href="http://sourceforge.net/projects/sdcc/files/">
+              http://sourceforge.net/projects/sdcc/files/</a>.</p>
 
             <!-- END PAST_NEWS -->
 

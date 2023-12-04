@@ -78,11 +78,6 @@ reg_info regs8051[] = {
   {REG_BIT, B5_IDX, REG_BIT, "b5", "b5", "bits", 5, 1},
   {REG_BIT, B6_IDX, REG_BIT, "b6", "b6", "bits", 6, 1},
   {REG_BIT, B7_IDX, REG_BIT, "b7", "b7", "bits", 7, 1},
-  {REG_GPR, X8_IDX, REG_GPR, "x8", "x8", "xreg", 0, 1},
-  {REG_GPR, X9_IDX, REG_GPR, "x9", "x9", "xreg", 1, 1},
-  {REG_GPR, X10_IDX, REG_GPR, "x10", "x10", "xreg", 2, 1},
-  {REG_GPR, X11_IDX, REG_GPR, "x11", "x11", "xreg", 3, 1},
-  {REG_GPR, X12_IDX, REG_GPR, "x12", "x12", "xreg", 4, 1},
   {REG_CND, CND_IDX, REG_CND, "C", "not_psw", "0xd0", 0, 1},
   {0, DPL_IDX, 0, "dpl", "dpl", "0x82", 0, 0},
   {0, DPH_IDX, 0, "dph", "dph", "0x83", 0, 0},
@@ -93,6 +88,27 @@ reg_info regs8051[] = {
 int mcs51_nRegs = 16;
 static void spillThis (symbol *);
 static void freeAllRegs ();
+
+
+int
+mcs51_regname_to_idx (const char* reg_name)
+{
+  if (reg_name == NULL || *reg_name == '\0')
+    return -1;
+
+  for (int i = 0; i < END_IDX; ++i)
+    {
+       if (regs8051[i].name)
+         if (!strncmp (reg_name, regs8051[i].name, strlen(regs8051[i].name)))
+            return i;
+
+       if (regs8051[i].dname)
+         if (!strncmp (reg_name, regs8051[i].dname, strlen(regs8051[i].dname)))
+            return i;
+    }
+
+  return -1;
+}
 
 /*-----------------------------------------------------------------*/
 /* allocReg - allocates register of given type                     */
@@ -857,7 +873,7 @@ tryAgain:
     return NULL;
 
   /* make sure partially assigned registers aren't reused */
-  for (j = 0; j <= sym->nRegs; j++)
+  for (j = 0; j <= sym->nRegs && j < 8; j++)
     if (sym->regs[j])
       sym->regs[j]->isFree = 0;
 
@@ -1479,18 +1495,6 @@ serialRegAssign (eBBlock ** ebbs, int count)
           if (SKIP_IC2 (ic))
             continue;
 
-          if (ic->op == IFX)
-            {
-              verifyRegsAssigned (IC_COND (ic), ic);
-              continue;
-            }
-
-          if (ic->op == JUMPTABLE)
-            {
-              verifyRegsAssigned (IC_JTCOND (ic), ic);
-              continue;
-            }
-
           verifyRegsAssigned (IC_RESULT (ic), ic);
           verifyRegsAssigned (IC_LEFT (ic), ic);
           verifyRegsAssigned (IC_RIGHT (ic), ic);
@@ -1790,21 +1794,6 @@ regsUsedIniCode (iCode * ic)
 {
   bitVect *rmask = newBitVect (mcs51_nRegs);
 
-  /* do the special cases first */
-  if (ic->op == IFX)
-    {
-      rmask = bitVectUnion (rmask, mcs51_rUmaskForOp (IC_COND (ic)));
-      goto ret;
-    }
-
-  /* for the jumptable */
-  if (ic->op == JUMPTABLE)
-    {
-      rmask = bitVectUnion (rmask, mcs51_rUmaskForOp (IC_JTCOND (ic)));
-      goto ret;
-    }
-
-  /* of all other cases */
   if (IC_LEFT (ic))
     rmask = bitVectUnion (rmask, mcs51_rUmaskForOp (IC_LEFT (ic)));
 
@@ -1814,7 +1803,6 @@ regsUsedIniCode (iCode * ic)
   if (IC_RESULT (ic))
     rmask = bitVectUnion (rmask, mcs51_rUmaskForOp (IC_RESULT (ic)));
 
-ret:
   return rmask;
 }
 
@@ -1957,6 +1945,8 @@ static bool isFlagVar (symbol *sym)
 
       iCode *ic = hTabItemWithKey (iCodehTab, key);
 
+      if (ic->op == CALL || ic->op == PCALL) // Codegen cannot deal with a return value in a bit, if another bit is live (push/pop of bit to save the live one will overwrite result).
+        return (false);
       if (ic->op == AND_OP || ic->op == OR_OP || ic->op == EQ_OP || ic->op == '<' || ic->op == '>' || ic->op == CAST || ic->op == '!')
         gooduses++;
       else if (ic->op == '=' &&
@@ -2357,28 +2347,14 @@ findAssignToSym (operand * op, iCode * ic)
         break;                  /* found where this temp was defined */
 
       /* if we find an usage then we cannot delete it */
+      if (IC_LEFT (dic) && IC_LEFT (dic)->key == op->key)
+        return NULL;
 
-      if (dic->op == IFX)
-        {
-          if (IC_COND (dic) && IC_COND (dic)->key == op->key)
-            return NULL;
-        }
-      else if (dic->op == JUMPTABLE)
-        {
-          if (IC_JTCOND (dic) && IC_JTCOND (dic)->key == op->key)
-            return NULL;
-        }
-      else
-        {
-          if (IC_LEFT (dic) && IC_LEFT (dic)->key == op->key)
-            return NULL;
+      if (IC_RIGHT (dic) && IC_RIGHT (dic)->key == op->key)
+        return NULL;
 
-          if (IC_RIGHT (dic) && IC_RIGHT (dic)->key == op->key)
-            return NULL;
-
-          if (POINTER_SET (dic) && IC_RESULT (dic)->key == op->key)
-            return NULL;
-        }
+      if (POINTER_SET (dic) && IC_RESULT (dic)->key == op->key)
+        return NULL;
     }
 
   if (!dic)
@@ -3347,12 +3323,12 @@ positionRegsReverse (eBBlock ** ebbs, int count)
         if (IC_LEFT (ic) && IS_SYMOP (IC_LEFT (ic)) && OP_SYMBOL (IC_LEFT (ic))->nRegs &&
             IC_RESULT (ic) && IS_SYMOP (IC_RESULT (ic)) && OP_SYMBOL (IC_RESULT (ic))->nRegs)
           {
-            positionRegs (OP_SYMBOL (IC_RESULT (ic)), OP_SYMBOL (IC_LEFT (ic)), 1);    
+            positionRegs (OP_SYMBOL (IC_RESULT (ic)), OP_SYMBOL (IC_LEFT (ic)), 1);
           }
         if (IC_RIGHT (ic) && IS_SYMOP (IC_RIGHT (ic)) && OP_SYMBOL (IC_RIGHT (ic))->nRegs &&
             IC_RESULT (ic) && IS_SYMOP (IC_RESULT (ic)) && OP_SYMBOL (IC_RESULT (ic))->nRegs)
           {
-            positionRegs (OP_SYMBOL (IC_RESULT (ic)), OP_SYMBOL (IC_RIGHT (ic)), 1);    
+            positionRegs (OP_SYMBOL (IC_RESULT (ic)), OP_SYMBOL (IC_RIGHT (ic)), 1);
           }
       }
 }
@@ -3455,6 +3431,9 @@ mcs51_assignRegisters (ebbIndex * ebbi)
 
   /* now get back the chain */
   ic = iCodeLabelOptimize (iCodeFromeBBlock (ebbs, count));
+
+  /* Redo generalized constant propagation */
+  recomputeValinfos (ic, ebbi, "_2");
 
   gen51Code (ic);
 

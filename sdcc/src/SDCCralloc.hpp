@@ -133,7 +133,7 @@ typedef std::vector<var_t> varset_t; // Faster than std::set,  std::tr1::unorder
 
 typedef boost::container::flat_map<int, float> icosts_t; // Faster than std::map and stx::btree_map here.
 
-typedef std::vector<var_t> cfg_alive_t; // Faster than stx::btree_set here .
+typedef std::vector<var_t> cfg_alive_t; // Faster than stx::btree_set here.
 typedef boost::container::flat_set<var_t> cfg_dying_t; // Faster than stx::btree_set and std::set here.
 
 struct assignment
@@ -481,16 +481,9 @@ create_cfg(cfg_t &cfg, con_t &con, ebbIndex *ebbi)
             }
         }
 
-      if (ic->op == IFX)
-        add_operand_to_cfg_node(cfg[key_to_index[ic->key]], IC_COND(ic), sym_to_index);
-      else if (ic->op == JUMPTABLE)
-        add_operand_to_cfg_node(cfg[key_to_index[ic->key]], IC_JTCOND(ic), sym_to_index);
-      else
-        {
-          add_operand_to_cfg_node(cfg[key_to_index[ic->key]], IC_RESULT(ic), sym_to_index);
-          add_operand_to_cfg_node(cfg[key_to_index[ic->key]], IC_LEFT(ic), sym_to_index);
-          add_operand_to_cfg_node(cfg[key_to_index[ic->key]], IC_RIGHT(ic), sym_to_index);
-        }
+      add_operand_to_cfg_node(cfg[key_to_index[ic->key]], IC_RESULT(ic), sym_to_index);
+      add_operand_to_cfg_node(cfg[key_to_index[ic->key]], IC_LEFT(ic), sym_to_index);
+      add_operand_to_cfg_node(cfg[key_to_index[ic->key]], IC_RIGHT(ic), sym_to_index);
 
       // TODO: Extend live-ranges of returns of built-in function calls back to first SEND.
 
@@ -887,6 +880,7 @@ static void tree_dec_ralloc_leaf(T_t &T, typename boost::graph_traits<T_t>::vert
   assignment_list_t &alist = T[t].assignments;
 
   a.s = 0;
+  a.marked = false;
   a.global.resize(boost::num_vertices(I), -1);
   alist.push_back(a);
   

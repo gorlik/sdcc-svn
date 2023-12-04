@@ -114,20 +114,33 @@ cl_f8::make_memories(void)
 {
   class cl_address_space *as;
   class cl_address_decoder *ad;
-  class cl_memory_chip *chip;
-  
+  class cl_memory_chip *ram_chip, *prom_chip;
+
+  // Flat address space
   rom= as= new cl_address_space("rom", 0, 0x10000, 8);
   as->init();
   address_spaces->add(as);
 
-  chip= new cl_chip8("rom_chip", 0x10000, 8);
-  chip->init();
-  memchips->add(chip);
+  // RAM
+  ram_chip= new cl_chip8("ram_chip", 0x2000, 8);
+  ram_chip->init();
+  memchips->add(ram_chip);
   ad= new cl_address_decoder(as= rom,
-			     chip, 0, 0xffff, 0);
+			     ram_chip, 0x2000, 0x3fff, 0);
   ad->init();
   as->decoders->add(ad);
   ad->activate(0);
+
+  // PROM
+  prom_chip= new cl_chip8("prom_chip", 0xc000, 8);
+  prom_chip->init();
+  memchips->add(prom_chip);
+  ad= new cl_address_decoder(as= rom,
+			     prom_chip, 0x4000, 0xffff, 0);
+  ad->init();
+  as->decoders->add(ad);
+  ad->activate(0);
+  rom->set_cell_flag(0x4000, 0xffff, true, CELL_READ_ONLY);
 }
 
 
@@ -388,14 +401,14 @@ cl_f8::exec_inst(void)
 	case PREF_SWAPOP: // swapop
 	  prefixes|= P_SWAP;
 	  break;
-	case PREF_ALT0: // altacc
-	  prefixes|= P_ALT0;
-	  break;
-	case PREF_ALT1: // altacc'
+	case PREF_ALT1: // altacc
 	  prefixes|= P_ALT1;
 	  break;
-	case PREF_ALT2: // altacc''
+	case PREF_ALT2: // altacc'
 	  prefixes|= P_ALT2;
+	  break;
+	case PREF_ALT3: // altacc''
+	  prefixes|= P_ALT3;
 	  break;
 	}
       if (fetch(&code))
@@ -403,20 +416,20 @@ cl_f8::exec_inst(void)
     }
   prefixes&= allowed_prefs[code]; // drop swap if not allowed!
   // select accumulators according to prefixes
-  if (prefixes & P_ALT0)
+  if (prefixes & P_ALT1)
     {
       acc8 = &cXH;
       acc16= &cY;
     }
-  else if (prefixes & P_ALT1)
-    {
-      acc8 = &cYL;
-      acc16= &cX;
-    }
   else if (prefixes & P_ALT2)
     {
+      acc8 = &cYL;
+      acc16= &cZ;
+    }
+  else if (prefixes & P_ALT3)
+    {
       acc8 = &cZL;
-      acc16= &cY;
+      acc16= &cX;
     }
   /*
     // clear_prefixes() prepares this state

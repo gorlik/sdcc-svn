@@ -1,3 +1,23 @@
+2022-10-17 Philipp Klaus Krause <philipp@colecovision.eu>
+
+	* local/powerpc64-linux-gnu.mk:
+	  Example .mk for GNU/Linux on Power 9 (as currently used by nemesis in the compile farm).
+
+2022-08-27 Philipp Klaus Krause <philipp@colecovision.eu>
+
+	* lib/variables.mk:
+	  Enable regression testing for r800 port.
+
+2022-07-07 Philipp Klaus Krause <philipp@colecovision.eu>
+
+	* lib/variables.mk:
+	  Enable regression testing for s08-stack-auto.
+
+2023-04-26 Philipp Klaus Krause <pkk AT spth.de>
+
+	* lib/doc-archive.mk:
+	  Fix bug #3575.
+
 2022-11-28 Erik Petrich <epetrich AT ivorytower.norman.ok.us>
 
 	* lib/bootstrap.mk: move cc1.exe to the build bin directory

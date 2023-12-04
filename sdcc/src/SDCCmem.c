@@ -645,7 +645,7 @@ allocParms (value *val, bool smallc)
           fatalError++;
           return;
         }
-        
+
       /* check the declaration */
       checkDecl (lval->sym, 0);
 
@@ -724,7 +724,8 @@ allocParms (value *val, bool smallc)
           /* otherwise depending on the memory model */
           SPEC_OCLS (lval->etype) = SPEC_OCLS (lval->sym->etype) =
               port->mem.default_local_map;
-          if (options.model == MODEL_SMALL)
+          if (options.model == MODEL_SMALL ||
+            options.model == NO_MODEL && !TARGET_PIC_LIKE /* The test for NO_MODEL was introduced to fix an issue for pdk (pdk has no xdata) maybe it is the right thing to do for pic, too. But I don't know about pic*/)
             {
               /* note here that we put it into the overlay segment
                  first, we will remove it from the overlay segment
@@ -906,7 +907,9 @@ allocLocal (symbol * sym)
   /* again note that we have put it into the overlay segment
      will remove and put into the 'data' segment if required after
      overlay  analysis has been done */
-  if (options.model == MODEL_SMALL)
+  if (options.model == MODEL_SMALL &&
+    // Do not put anything into overlay segment for non-extern, non-static inline function, since it would never get removed (was bug #3030).
+    !(FUNC_ISINLINE (sym->localof->type) && !IS_EXTERN (getSpec (sym->localof->type)) && !IS_STATIC (getSpec (sym->localof->type))))
     {
       SPEC_OCLS (sym->etype) =
         (options.noOverlay ? port->mem.default_local_map : overlay);
@@ -1245,12 +1248,15 @@ printAllocInfoSeg (memmap * map, symbol * func, struct dbuf_s *oBuf)
                 stack_offset = func->stack;
             }
 
+          if (IS_STRUCT (func->type->next) && sym->stack < 0)
+            stack_offset += GPTRSIZE;
+
           stack_offset += port->stack.offset; /* in case sp/bp points to the next location instead of last */
 
           if (port->stack.direction < 0)
             stack_offset = -stack_offset;
 
-          dbuf_printf (oBuf, "to stack - %s %+d\n", SYM_BP (sym), sym->stack - stack_offset);
+          dbuf_printf (oBuf, "to stack - %s %+d %+d \n", SYM_BP (sym), sym->stack - stack_offset, getSize (sym->type));
           continue;
         }
 
@@ -1280,6 +1286,8 @@ canOverlayLocals (eBBlock ** ebbs, int count)
     {
       return FALSE;
     }
+
+  wassert (currFunc);
 
   /* if this is a forces overlay */
   if (IFFUNC_ISOVERLAY(currFunc->type)) return TRUE;
