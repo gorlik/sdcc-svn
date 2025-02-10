@@ -43,11 +43,13 @@ struct valinfos;
 struct valinfo
 {
 	bool nothing, anything;
+	bool nonnull; // For pointers
 	long long int min, max;
 	unsigned long long knownbitsmask;
 	unsigned long long knownbits;
 };
 
+bool valinfo_union (struct valinfo *v0, const struct valinfo v1);
 struct valinfo getOperandValinfo (const iCode *ic, const operand *op);
 void recomputeValinfos (iCode *sic, ebbIndex *ebbi, const char *suffix);
 void optimizeValinfo (iCode *sic);

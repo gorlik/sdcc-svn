@@ -520,7 +520,6 @@ static void get_best_local_assignment_biased(assignment &a, typename boost::grap
 {
   a = *T[t].assignments.begin();
 
-  std::set<var_t>::const_iterator vi, vi_end;
   varset_t newlocal;
   std::set_union(T[t].alive.begin(), T[t].alive.end(), a.local.begin(), a.local.end(), std::inserter(newlocal, newlocal.end()));
   a.local = newlocal;
@@ -648,6 +647,8 @@ iCode *hc08_ralloc2_cc(ebbIndex *ebbi)
 
   if (optimize.genconstprop)
     recomputeValinfos (ic, ebbi, "_2");
+
+  guessCounts(ic, ebbi);
 
   if(options.dump_graphs)
     dump_cfg(control_flow_graph);

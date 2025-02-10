@@ -87,6 +87,15 @@ asmop;
 void gen51Code (iCode *);
 void mcs51_emitDebuggerSymbol (const char *);
 
+bool mcs51IsReturned (const char *what);
+
+// Check if what is part of the ith argument (counting from 1) to a function of type ftype.
+// If what is 0, just check if the ith argument is in registers.
+bool mcs51IsRegArg (struct sym_link *ftype, int i, const char *what);
+
+// Check if what is part of the any argument (counting from 1) to a function of type ftype.
+bool stm8IsParmInCall(sym_link *ftype, const char *what);
+
 extern const char *fReturn8051[];
 extern unsigned fReturnSizeMCS51;
 //extern char **fReturn;

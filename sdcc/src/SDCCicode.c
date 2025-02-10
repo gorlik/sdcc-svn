@@ -30,7 +30,9 @@
 /*-----------------------------------------------------------------*/
 /* global variables       */
 
-set *iCodeChain = NULL;
+iCode *iCodeChain = 0;
+iCode *iCodeChainEnd;
+
 int iTempNum = 0;
 int iTempLblNum = 0;
 int operandKey = 0;
@@ -128,6 +130,23 @@ iCodeTable codeTable[] = {
   {ENDCRITICAL, "critical_end", picEndCritical, NULL},
 };
 
+// ADDTOCHAIN - add iCode at the end of the chain. All-caps name, since this used to be a macro. 
+static void
+ADDTOCHAIN (iCode *x)
+{
+  if (!iCodeChain)
+    {
+      iCodeChain = x;
+      iCodeChainEnd = 0;
+    }
+  else
+    iCodeChainEnd->next = x;
+
+  x->prev = iCodeChainEnd;
+  iCodeChainEnd = x;
+  x->next = 0;
+}
+
 /*-----------------------------------------------------------------*/
 /* operandName - returns the name of the operand                   */
 /*-----------------------------------------------------------------*/
@@ -202,7 +221,7 @@ dbuf_printOperand (operand * op, struct dbuf_s *dbuf)
             {
               bool completely_spilt = OP_SYMBOL (op)->isspilt;
               for (int i = 0; i < OP_SYMBOL (op)->nRegs; i++)
-                if (OP_SYMBOL (op)->regs[i]);
+                if (OP_SYMBOL (op)->regs[i])
                   completely_spilt = false;
               if (completely_spilt)
                 {
@@ -1119,38 +1138,30 @@ isOperandOnStack (operand * op)
 
 /*-------------------------------------------------------------------*/
 /* detachiCodeOperand - remove a specific operand position (left,    */
-/*                      right, result, etc) from an iCode and update */
+/*                      right, result) from an iCode and update      */
 /*                      the uses & defs as appropriate.              */
 /*-------------------------------------------------------------------*/
 operand *
 detachiCodeOperand (operand **opp, iCode *ic)
 {
-  operand * op = *opp;
+  operand *op = *opp;
   
   if (IS_SYMOP (op))
     {
-      if ((ic->op == IFX) || (ic->op == JUMPTABLE))
-        {
-          *opp = NULL;
-          bitVectUnSetBit (OP_USES (op), ic->key);
-        }
-      else
-        {
-          int uses = 0;
-          bool ispointerset = POINTER_SET (ic);
+      int uses = 0;
+      bool ispointerset = POINTER_SET (ic);
 
-          if (!ispointerset && (opp == &IC_RESULT (ic)))
-            bitVectUnSetBit (OP_DEFS (op), ic->key);
-          *opp = NULL;
-          if (ispointerset && (op == IC_RESULT (ic)))
-            uses++;
-          if (op == IC_LEFT (ic))
-            uses++;
-          if (op == IC_RIGHT (ic))
-            uses++;
-          if (uses == 0)
-            bitVectUnSetBit (OP_USES (op), ic->key);
-        }
+      if (!ispointerset && (opp == &ic->result))
+        bitVectUnSetBit (OP_DEFS (op), ic->key);
+      *opp = NULL;
+      if (ispointerset && (op == ic->result))
+        uses++;
+      if (op == ic->left)
+        uses++;
+      if (op == ic->right)
+         uses++;
+      if (uses == 0)
+        bitVectUnSetBit (OP_USES (op), ic->key);
     }
   else
     *opp = NULL;
@@ -1159,7 +1170,7 @@ detachiCodeOperand (operand **opp, iCode *ic)
 
 /*-------------------------------------------------------------------*/
 /* attachiCodeOperand - insert an operand to a specific operand      */
-/*                      position (left, right, result, etc) in an    */
+/*                      position (left, right, result) in an         */
 /*                      iCode and update the uses & defs as          */
 /*                      appropriate. Any previously existing operand */
 /*                      in that position will be detached first.     */
@@ -1177,7 +1188,7 @@ attachiCodeOperand (operand *newop, operand **opp, iCode *ic)
   /* Update defs/uses for new operand */
   if (IS_SYMOP (newop))
     {
-      if (opp == &IC_RESULT (ic) && !POINTER_SET (ic))
+      if (opp == &ic->result && !POINTER_SET (ic))
         OP_DEFS (newop) = bitVectSetBit (OP_DEFS (newop), ic->key);
       else
         OP_USES (newop) = bitVectSetBit (OP_USES (newop), ic->key);
@@ -2218,7 +2229,7 @@ geniCodeMultiply (operand * left, operand * right, RESULT_TYPE resultType)
      efficient in most cases than 2 bytes result = 2 bytes << literal
      if port has 1 byte muldiv */
   if ((p2 > 0) && !IS_FLOAT (letype) && !IS_FIXED (letype) &&
-      !((resultType == RESULT_TYPE_INT) && (getSize (resType) != getSize (ltype)) && !(TARGET_Z80_LIKE || TARGET_MOS6502_LIKE || TARGET_IS_STM8 && p2 == 1) /* Mimic old behaviour that tested port->muldiv, which was zero for stm8 and z80-like only. Someone should look into what really makes sense here. */) &&
+      !((resultType == RESULT_TYPE_INT) && (getSize (resType) != getSize (ltype)) && !(TARGET_Z80_LIKE || TARGET_MOS6502_LIKE || TARGET_IS_F8 || TARGET_IS_STM8 && p2 == 1) /* Mimic old behaviour that tested port->muldiv, which was zero for stm8 and z80-like only. Someone should look into what really makes sense here. */) &&
       !TARGET_PIC_LIKE)      /* don't shift for pic */
     {
       if ((resultType == RESULT_TYPE_INT) && (getSize (resType) != getSize (ltype)))
@@ -2279,7 +2290,7 @@ geniCodeDivision (operand *left, operand *right, RESULT_TYPE resultType, bool pt
    
   if (IS_LITERAL (retype) &&
       (!IS_FLOAT (letype) && !IS_FIXED (letype) && IS_UNSIGNED (letype) || ptrdiffdiv) &&
-      ((p2 = powof2 ((TYPE_TARGET_ULONG) ulFromVal (OP_VALUE (right)))) > 0))
+      ((p2 = powof2 ((TYPE_TARGET_ULONGLONG) ullFromVal (OP_VALUE (right)))) > 0))
     {
       ic = newiCode (RIGHT_OP, left, operandFromLit (p2));      /* right shift */
     }
@@ -2289,7 +2300,8 @@ geniCodeDivision (operand *left, operand *right, RESULT_TYPE resultType, bool pt
   else if (IS_LITERAL (retype) &&
       !IS_FLOAT (letype) &&
       !IS_FIXED (letype) && !IS_UNSIGNED (letype) &&
-      ((p2 = powof2 ((TYPE_TARGET_ULONG) ulFromVal (OP_VALUE (right)))) > 0) &&
+      floatFromVal (OP_VALUE (right)) >= 0 &&
+      ((p2 = powof2 ((TYPE_TARGET_ULONGLONG) ullFromVal (OP_VALUE (right)))) > 0) &&
       (TARGET_Z80_LIKE || TARGET_HC08_LIKE || TARGET_MOS6502_LIKE))
     {
       operand *tmp;
@@ -3163,13 +3175,13 @@ geniCodeLogic (operand * left, operand * right, int op, ast * tree)
   if (IS_GENPTR (ltype) && IS_VOID (ltype->next) && IS_ITEMP (left) && IS_PTR (rtype) && !IS_GENPTR (rtype))
     {
       /* find left's definition */
-      ic = (iCode *) setFirstItem (iCodeChain);
+      ic = iCodeChain;
       while (ic)
         {
           if (((ic->op == CAST) || (ic->op == '=')) && isOperandEqual (left, IC_RESULT (ic)))
             break;
           else
-            ic = setNextItem (iCodeChain);
+            ic = ic->next;
         }
       /* if casting literal to generic pointer, then cast to rtype instead */
       if (ic && (ic->op == CAST) && isOperandLiteral (IC_RIGHT (ic)))
@@ -3181,13 +3193,13 @@ geniCodeLogic (operand * left, operand * right, int op, ast * tree)
   if (IS_GENPTR (rtype) && IS_VOID (rtype->next) && IS_ITEMP (right) && IS_PTR (ltype) && !IS_GENPTR (ltype))
     {
       /* find right's definition */
-      ic = (iCode *) setFirstItem (iCodeChain);
+      ic = iCodeChain;
       while (ic)
         {
           if (((ic->op == CAST) || (ic->op == '=')) && isOperandEqual (right, IC_RESULT (ic)))
             break;
           else
-            ic = setNextItem (iCodeChain);
+            ic = ic->next;
         }
       /* if casting literal to generic pointer, then cast to rtype instead */
       if (ic && (ic->op == CAST) && isOperandLiteral (IC_RIGHT (ic)))
@@ -3386,7 +3398,17 @@ checkTypes (operand * left, operand * right)
     }
 
   if (always_cast || compareType (ltype, rtype, false) == -1)
-    right = geniCodeCast (ltype, right, TRUE);
+    {
+      if (IS_VOLATILE (ltype)) // Don't propagate volatile to right side - we don't want volatile iTemps.
+        {
+          ltype = copyLinkChain (ltype);
+          if (IS_DECL(ltype))
+            DCL_PTR_VOLATILE (ltype) = 0;
+          else
+            SPEC_VOLATILE (ltype) = 0;
+        }
+      right = geniCodeCast (ltype, right, TRUE);
+    }
   checkPtrQualifiers (ltype, rtype, !right->isConstElimnated);
   return right;
 }
@@ -3504,7 +3526,7 @@ geniCodeSEParms (ast *parms, int lvl)
 /* geniCodeParms - generates parameters                            */
 /*-----------------------------------------------------------------*/
 value *
-geniCodeParms (ast * parms, value * argVals, int *iArg, int *stack, sym_link * ftype, int lvl)
+geniCodeParms (ast *parms, value *argVals, int *iArg, int *stack, sym_link *ftype, int lvl, iCode *iic_start)
 {
   iCode *ic;
   operand *pval;
@@ -3512,30 +3534,20 @@ geniCodeParms (ast * parms, value * argVals, int *iArg, int *stack, sym_link * f
   if (!parms)
     return argVals;
 
+  if (!iic_start)
+    iic_start = iCodeChainEnd;
+
   /* if this is a param node then do the left & right */
   if (parms->type == EX_OP && parms->opval.op == PARAM)
     {
-      argVals = geniCodeParms (parms->left, argVals, iArg, stack, ftype, lvl);
-      argVals = geniCodeParms (parms->right, argVals, iArg, stack, ftype, lvl);
+      argVals = geniCodeParms (parms->left, argVals, iArg, stack, ftype, lvl, iic_start);
+      argVals = geniCodeParms (parms->right, argVals, iArg, stack, ftype, lvl, iic_start);
       return argVals;
     }
 
-  /* get the parameter value */
-  if (parms->type == EX_OPERAND)
-    pval = parms->opval.oprnd;
-  else
-    {
-      /* maybe this else should go away ?? */
-      /* hack don't like this but too lazy to think of
-         something better */
-      if (IS_ADDRESS_OF_OP (parms))
-        parms->left->lvalue = 1;
-
-      if (IS_CAST_OP (parms) && IS_PTR (parms->ftype) && IS_ADDRESS_OF_OP (parms->right))
-        parms->right->left->lvalue = 1;
-
-      pval = geniCodeRValue (ast2iCode (parms, lvl + 1), FALSE);
-    }
+  // Get the parameter value. All the real work for this was done in geniCodeSEParms already.
+  wassert (parms->type == EX_OPERAND);
+  pval = parms->opval.oprnd;
 
   /* if register parm then make it a send */
   if ((IS_REGPARM (parms->etype) && !IFFUNC_HASVARARGS (ftype)) || IFFUNC_ISBUILTIN (ftype))
@@ -3548,14 +3560,20 @@ geniCodeParms (ast * parms, value * argVals, int *iArg, int *stack, sym_link * f
     }
   else
     {
+      iCode *castic_start = 0;
+      iCode *castic_end = 0;
       bool is_structparm = IS_STRUCT (parms->ftype); // struct parameter handling is hackish.
+      if (iic_start != iCodeChainEnd)
+        castic_start = iCodeChainEnd;
       if (is_structparm)
         {
           sym_link *ptr = newLink (DECLARATOR);
           DCL_TYPE (ptr) = PTR_TYPE (SPEC_OCLS (getSpec (operandType (pval))));
           ptr->next = copyLinkChain (parms->ftype);
           if (IS_PTR (operandType (pval)))
-            pval = geniCodeCast (ptr, pval, true);
+            {
+              pval = geniCodeCast (ptr, pval, true);
+            }
           setOperandType (pval, ptr);
         }
       // now decide whether to push or assign
@@ -3563,44 +3581,75 @@ geniCodeParms (ast * parms, value * argVals, int *iArg, int *stack, sym_link * f
         {
           if (is_structparm) // Passing the parameter requires a memcpy.
             {
-              iCode *dstic, *srcic, *nic, *cic;
+              iCode *dstic, *srcic, *nic, *callic, *iic_end;
+              // Keep this one in mind in so we can move it later.
               operand *dstop = geniCodeCast (FUNC_ARGS(builtin_memcpy->type)->type, operandFromValue (argVals, true), false);
-              if (IS_REGPARM (FUNC_ARGS(builtin_memcpy->type)->etype))
+              castic_end = iCodeChainEnd;
+              if (IS_REGPARM (FUNC_ARGS (builtin_memcpy->type)->etype))
                 {
                   dstic = newiCode (SEND, dstop, 0);
-                  dstic->argreg = SPEC_ARGREG(FUNC_ARGS(builtin_memcpy->type)->etype);
+                  dstic->argreg = SPEC_ARGREG (FUNC_ARGS (builtin_memcpy->type)->etype);
                 }
               else
                 {
                   dstic = newiCode ('=', 0, dstop);
                   IC_RESULT (dstic) = operandFromValue (FUNC_ARGS(builtin_memcpy->type), false);
                 }
-              ADDTOCHAIN (dstic);
-              if (IS_REGPARM (FUNC_ARGS(builtin_memcpy->type)->next->etype))
+              if (IS_REGPARM (FUNC_ARGS (builtin_memcpy->type)->next->etype))
                 {
                   srcic = newiCode (SEND, pval, 0);
-                  srcic->argreg = SPEC_ARGREG(FUNC_ARGS(builtin_memcpy->type)->next->etype);
+                  srcic->argreg = SPEC_ARGREG (FUNC_ARGS (builtin_memcpy->type)->next->etype);
                 }
               else
                 {
                   srcic = newiCode ('=', 0, pval);
                   IC_RESULT (srcic) = operandFromValue (FUNC_ARGS(builtin_memcpy->type)->next, false);
                 }
-              ADDTOCHAIN (srcic);
-              if (IS_REGPARM (FUNC_ARGS(builtin_memcpy->type)->next->next->etype))
+              if (IS_REGPARM (FUNC_ARGS (builtin_memcpy->type)->next->next->etype))
                 {
                   nic = newiCode (SEND, operandFromLit (getSize (parms->ftype)), 0);
-                  nic->argreg = SPEC_ARGREG(FUNC_ARGS(builtin_memcpy->type)->next->next->etype);
+                  nic->argreg = SPEC_ARGREG (FUNC_ARGS (builtin_memcpy->type)->next->next->etype);
                 }
               else
                 {
                   nic = newiCode ('=', 0, operandFromLit (getSize (parms->ftype)));
                   IC_RESULT (nic) = operandFromValue (FUNC_ARGS(builtin_memcpy->type)->next->next, false);
                 }
-              ADDTOCHAIN (nic);
-              cic = newiCode (CALL, operandFromSymbol (builtin_memcpy, false), 0);
-              IC_RESULT (cic) = newiTempOperand (builtin_memcpy->type->next, 0);
-              ADDTOCHAIN (cic);
+              callic = newiCode (CALL, operandFromSymbol (builtin_memcpy, false), 0);
+              IC_RESULT (callic) = newiTempOperand (builtin_memcpy->type->next, 0);
+              // Insert before passing any other parameters - otherwise register parameters to the function will instead end up as parameters to the memcpy call.
+              if (castic_start)
+                {
+                  iCode *castic = castic_start->next;
+                  // Cut out cast from where it is.
+                  castic_start->next = castic_end->next;
+                  if (castic_end->next)
+                    castic_end->next->prev = castic_start;
+                  if (castic_end == iCodeChainEnd)
+                    iCodeChainEnd = castic_start;
+                  // Insert it earlier.
+                  iic_end = iic_start->next;
+                  iic_start->next = castic;
+                  castic->prev = iic_start;
+                  castic_end->next = iic_end;
+                  if (iic_end)
+                    iic_end->prev = castic_end;
+                }
+              iic_start = castic_end;
+              iic_end = iic_start->next;
+              iic_start->next = dstic;
+              dstic->prev = iic_start;
+              dstic->next = srcic;
+              srcic->prev = dstic;
+              srcic->next = nic;
+              nic->prev = srcic;
+              nic->next = callic;
+              callic->prev = nic;
+              callic->next = iic_end;
+              if (iic_end)
+                iic_end->prev = callic;
+              else if (iic_start == iCodeChainEnd)
+                iCodeChainEnd = callic;
             }
           else
             {
@@ -3617,7 +3666,7 @@ geniCodeParms (ast * parms, value * argVals, int *iArg, int *stack, sym_link * f
             pval = checkTypes (operandFromValue (argVals, false), pval);
           // push
           if (is_structparm)
-            ic = newiCode (IPUSH_VALUE_AT_ADDRESS , pval, operandFromLit (0));
+            ic = newiCode (IPUSH_VALUE_AT_ADDRESS, pval, operandFromLit (0));
           else
             ic = newiCode (IPUSH, pval, NULL);
           ic->parmPush = 1;
@@ -3713,12 +3762,12 @@ geniCodeCall (operand * left, ast * parms, int lvl)
 
       // reverse the argVals to match the parms
       argVals = reverseVal (argVals);
-      geniCodeParms (parms, argVals, &iArg, &stack, ftype, lvl);
+      geniCodeParms (parms, argVals, &iArg, &stack, ftype, lvl, 0);
       argVals = reverseVal (argVals);
     }
   else
     {
-      geniCodeParms (parms, FUNC_ARGS (ftype), &iArg, &stack, ftype, lvl);
+      geniCodeParms (parms, FUNC_ARGS (ftype), &iArg, &stack, ftype, lvl, 0);
     }
 
   /* now call : if symbol then pcall */
@@ -4799,27 +4848,6 @@ ast2iCode (ast * tree, int lvl)
 }
 
 /*-----------------------------------------------------------------*/
-/* reverseICChain - gets from the list and creates a linkedlist    */
-/*-----------------------------------------------------------------*/
-iCode *
-reverseiCChain ()
-{
-  iCode *loop = NULL;
-  iCode *prev = NULL;
-
-  while ((loop = getSet (&iCodeChain)))
-    {
-      loop->next = prev;
-      if (prev)
-        prev->prev = loop;
-      prev = loop;
-    }
-
-  return prev;
-}
-
-
-/*-----------------------------------------------------------------*/
 /* iCodeFromAst - given an ast will convert it to iCode            */
 /*-----------------------------------------------------------------*/
 iCode *
@@ -4827,8 +4855,9 @@ iCodeFromAst (ast * tree)
 {
   returnLabel = newiTempLabel ("_return");
   entryLabel = newiTempLabel ("_entry");
+  iCodeChain = 0;
   ast2iCode (tree, 0);
-  return reverseiCChain ();
+  return (iCodeChain);
 }
 
 static const char *

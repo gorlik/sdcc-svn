@@ -72,7 +72,7 @@ struct
   { E_CANNOT_ALLOC, ERROR_LEVEL_ERROR,
      "Cannot allocate variable '%s'.", 0 },
   { E_OLD_STYLE, ERROR_LEVEL_ERROR,
-     "Old style C declaration. IGNORED '%s'", 0 },
+     "K&R-style function '%s' is not permitted in ISO C23 or later", 0 },
   { E_STACK_OUT, ERROR_LEVEL_ERROR,
      "Out of stack Space. '%s' not allocated", 0 },
   { E_INTERNAL_ERROR, ERROR_LEVEL_ERROR,
@@ -337,7 +337,7 @@ struct
   { W_ESC_SEQ_OOR_FOR_CHAR, ERROR_LEVEL_WARNING,
      "escape sequence out of range for char.", 0 },
   { E_INVALID_HEX, ERROR_LEVEL_ERROR,
-     "\\x used with no following hex digits.", 0 },
+     "\\x used without valid hexadecimal digits.", 0 },
   { W_FUNCPTR_IN_USING_ISR, ERROR_LEVEL_WARNING,
      "call via function pointer in ISR using non-zero register bank.\n"
      "            Cannot determine which register bank to save.", 0 },
@@ -427,7 +427,7 @@ struct
   { E_SHADOWREGS_NO_ISR, ERROR_LEVEL_ERROR,
      "ISR function attribute 'shadowregs' following non-ISR function '%s'", 0 },
   { W_SFR_ABSRANGE, ERROR_LEVEL_WARNING,
-     "absolute address for sfr '%s' probably out of range.", 0 },
+     "absolute address for __sfr '%s' probably out of range.", 0 },
   { E_BANKED_WITH_CALLEESAVES, ERROR_LEVEL_ERROR,
      "Both banked and callee-saves cannot be used together.", 0 },
   { W_INVALID_INT_CONST, ERROR_LEVEL_WARNING,
@@ -657,6 +657,38 @@ struct
      "target label missing for skip instruction '%s'", 0},
   { W_SDCCCALL_STD_LIB_CRT0, ERROR_LEVEL_WARNING,
      "non-default sdcccall specified, but default stdlib or crt0", 0},
+  { W_PEEPHOLE_RULE_LIMIT, ERROR_LEVEL_WARNING,
+     "peephole rule application limit reached", 0},
+  { W_DATA_ABSRANGE, ERROR_LEVEL_WARNING,
+     "absolute address for __data '%s' probably out of range.", 0 },
+  { W_IDATA_ABSRANGE, ERROR_LEVEL_WARNING,
+     "absolute address for __idata '%s' probably out of range.", 0 },
+  { W_CASE_RANGE_EMPTY, ERROR_LEVEL_WARNING,
+     "'case' range empty; case ignored", 0 },
+  { E_CASE_RANGE_C2Y, ERROR_LEVEL_ERROR,
+     "'case' range expressions require C2y or later", 0 },
+  { E_GENERIC_WITH_TYPENAME_C2Y, ERROR_LEVEL_ERROR,
+     "generic selection based on a type name requires C2y or later", 0 },
+  { E_MIXED_FUNCTION_STYLES, ERROR_LEVEL_ERROR,
+     "function '%s' mixes ISO and K&R style", 0 },
+  { E_ENUM_TYPE_SPECIFIER_C23, ERROR_LEVEL_ERROR,
+     "enum type specifiers require C23 or later", 0 },
+  { E_ENUM_UNDERLYING_TYPE, ERROR_LEVEL_ERROR,
+     "enum's underlying type must be an integer type and cannot be bit-precise or an enum", 0 },
+  { E_ENUM_TYPE_RANGE_TOO_SMALL, ERROR_LEVEL_ERROR,
+     "the enum's underlying type cannot represent all enumerator values", 0 },
+  { E_LENGTHOF_INVALID_TYPE, ERROR_LEVEL_ERROR,
+     "_Lengthof applied to an incomplete or non-array type", 0 },
+  { W_PREFIXED_OCTAL_C2Y, ERROR_LEVEL_WARNING,
+     "prefixed octal integer constants require ISO C2y or later", 0 },
+  { W_OCTAL_DEPRECATED_C2Y, ERROR_LEVEL_WARNING,
+     "unprefixed octal integer constants are deprecated as of ISO C2y", 0 },
+  { E_CLOSING_BRACE, ERROR_LEVEL_ERROR,
+     "invalid character or end of string encountered before '}'", 0 },
+  { E_INVALID_OCTAL, ERROR_LEVEL_ERROR,
+     "\\o{...} used without valid octal digits.", 0 },
+  { E_SELECTION_DECLARATION_C2Y, ERROR_LEVEL_ERROR,
+     "declaration within selection header requires ISO C2y or later", 0 },
 };
 
 /* -------------------------------------------------------------------------------
@@ -700,18 +732,18 @@ vwerror (int errNum, va_list marker)
   if (errNum > NELEM (ErrTab))
     {
       fprintf (_SDCCERRG.out,
-              "Internal error: bad error number %d.", errNum);
+              "Internal error: bad error number %d.\n", errNum);
       return 0;
     }
   if (NELEM (ErrTab) != NUMBER_OF_ERROR_MESSAGES || ErrTab[errNum].errIndex != errNum)
     {
       fprintf (_SDCCERRG.out,
-              "Internal error: error table entry for %d inconsistent.", errNum);
+              "Internal error: error table entry for %d inconsistent.\n", errNum);
       return 0;
     }
 
   dbuf_init(&dbuf, 200);
-  
+
   if ((ErrTab[errNum].errType >= _SDCCERRG.logLevel) && (!ErrTab[errNum].disabled))
     {
       if (ErrTab[errNum].errType >= ERROR_LEVEL_ERROR || _SDCCERRG.werror)

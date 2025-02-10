@@ -944,6 +944,17 @@ _getRegByName (const char *name)
   return -1;
 }
 
+static void
+_z80_genAssemblerStart (FILE * of)
+{
+  if (!options.noOptsdccInAsm)
+    {
+      tfprintf (of, "\t!optsdcc -m%s", port->target);
+      fprintf (of, " sdcccall(%d)", options.sdcccall);
+      fprintf (of, "\n");
+    }
+}
+
 static bool
 _hasNativeMulFor (iCode *ic, sym_link *left, sym_link *right)
 {
@@ -1073,6 +1084,7 @@ static const char *const _libs_tlcs90[] = { "tlcs90", NULL, };
 static const char *const _libs_sm83[] = { "sm83", NULL, };
 static const char *const _libs_ez80_z80[] = { "ez80_z80", NULL, };
 static const char *const _libs_z80n[] = { "z80n", NULL, };
+static const char *const _libs_r800[] = { "r800", NULL, };
 
 /* Globals */
 PORT z80_port =
@@ -1179,7 +1191,7 @@ PORT z80_port =
   _getRegByName,
   NULL,
   _keywords,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */
@@ -1294,11 +1306,11 @@ PORT z180_port =
   },
   { z80_emitDebuggerSymbol },
   {
-    256,                        /* maxCount */
-    3,                          /* sizeofElement */
+    8000,                       /* maxCount */
+    2,                          /* sizeofElement */
     {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
     {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
-    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
+    1,                          /* sizeofSubtract - Assumes use of a single inc or dec */
     9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
   },
   "_",
@@ -1313,7 +1325,7 @@ PORT z180_port =
   _getRegByName,
   NULL,
   _keywords,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */
@@ -1427,12 +1439,12 @@ PORT r2k_port =
   },
   { z80_emitDebuggerSymbol },
   {
-    256,                        /* maxCount */
-    3,                          /* sizeofElement */
+    8000,                       /* maxCount */
+    2,                          /* sizeofElement */
     {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
     {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
-    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
-    9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
+    1,                          /* sizeofSubtract - Assumes use of a single inc or dec */
+    8,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
   },
   "_",
   _r2k_init,
@@ -1446,7 +1458,7 @@ PORT r2k_port =
   _getRegByName,
   NULL,
   _keywords,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */
@@ -1561,12 +1573,12 @@ PORT r2ka_port =
   },
   { z80_emitDebuggerSymbol },
   {
-    256,                        /* maxCount */
-    3,                          /* sizeofElement */
+    8000,                       /* maxCount */
+    2,                          /* sizeofElement */
     {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
     {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
-    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
-    9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
+    1,                          /* sizeofSubtract - Assumes use of a single inc or dec */
+    8,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
   },
   "_",
   _r2ka_init,
@@ -1580,7 +1592,7 @@ PORT r2ka_port =
   _getRegByName,
   NULL,
   _keywords,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */
@@ -1695,12 +1707,12 @@ PORT r3ka_port =
   },
   { z80_emitDebuggerSymbol },
   {
-    256,                        /* maxCount */
-    3,                          /* sizeofElement */
+    8000,                       /* maxCount */
+    2,                          /* sizeofElement */
     {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
     {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
-    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
-    9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
+    1,                          /* sizeofSubtract - Assumes use of a single inc or dec */
+    8,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
   },
   "_",
   _r3ka_init,
@@ -1714,7 +1726,7 @@ PORT r3ka_port =
   _getRegByName,
   NULL,
   _keywords,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */
@@ -1831,11 +1843,11 @@ PORT sm83_port =
   },
   { z80_emitDebuggerSymbol },
   {
-    256,                        /* maxCount */
-    3,                          /* sizeofElement */
+    8000,                       /* maxCount */
+    2,                          /* sizeofElement */
     {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
     {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
-    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
+    1,                          /* sizeofSubtract - Assumes use of a single inc or dec */
     9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
   },
   "_",
@@ -1850,7 +1862,7 @@ PORT sm83_port =
   _getRegByName,
   NULL,
   _keywordsgb,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */
@@ -1965,11 +1977,11 @@ PORT tlcs90_port =
   },
   { z80_emitDebuggerSymbol },
   {
-    256,                        /* maxCount */
-    3,                          /* sizeofElement */
+    8000,                       /* maxCount */
+    2,                          /* sizeofElement */
     {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
     {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
-    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
+    1,                          /* sizeofSubtract - Assumes use of a single inc or dec */
     9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
   },
   "_",
@@ -1984,7 +1996,7 @@ PORT tlcs90_port =
   _getRegByName,
   NULL,
   _keywordstlcs90,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */
@@ -2099,12 +2111,12 @@ PORT ez80_z80_port =
   },
   { z80_emitDebuggerSymbol },
   {
-    256,                        /* maxCount */
-    3,                          /* sizeofElement */
+    8000,                       /* maxCount */
+    2,                          /* sizeofElement */
     {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
     {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
-    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
-    9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
+    1,                          /* sizeofSubtract - Assumes use of a single inc or dec */
+    7,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
   },
   "_",
   _ez80_z80_init,
@@ -2118,7 +2130,7 @@ PORT ez80_z80_port =
   _getRegByName,
   NULL,
   _keywords,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */
@@ -2233,11 +2245,11 @@ PORT z80n_port =
   },
   { z80_emitDebuggerSymbol },
   {
-    256,                        /* maxCount */
-    3,                          /* sizeofElement */
+    8000,                       /* maxCount */
+    2,                          /* sizeofElement */
     {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
     {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
-    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
+    1,                          /* sizeofSubtract - Assumes use of a single inc or dec */
     9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
   },
   "_",
@@ -2252,7 +2264,7 @@ PORT z80n_port =
   _getRegByName,
   NULL,
   _keywords,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */
@@ -2310,7 +2322,7 @@ PORT r800_port =
     ".rel",
     1,
     _crt,                       /* crt */
-    _libs_z80,                 /* libs */
+    _libs_r800,                 /* libs */
   },
   {                             /* Peephole optimizer */
     _z80_defaultRules,
@@ -2367,11 +2379,11 @@ PORT r800_port =
   },
   { z80_emitDebuggerSymbol },
   {
-    256,                        /* maxCount */
-    3,                          /* sizeofElement */
+    8000,                       /* maxCount */
+    2,                          /* sizeofElement */
     {6, 7, 8},                  /* sizeofMatchJump[] - Assumes operand allocated to registers */
     {6, 9, 15},                 /* sizeofRangeCompare[] - Assumes operand allocated to registers*/
-    1,                          /* sizeofSubtract - Assumes use of a singel inc or dec */
+    1,                          /* sizeofSubtract - Assumes use of a single inc or dec */
     9,                          /* sizeofDispatch - Assumes operand allocated to register e or c*/
   },
   "_",
@@ -2386,7 +2398,7 @@ PORT r800_port =
   _getRegByName,
   NULL,
   _keywords,
-  0,                            /* no assembler preamble */
+  _z80_genAssemblerStart,
   NULL,                         /* no genAssemblerEnd */
   0,                            /* no local IVT generation code */
   0,                            /* no genXINIT code */

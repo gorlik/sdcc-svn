@@ -81,6 +81,8 @@ AC_LANG([C])
 
 AC_CHECK_HEADERS(endian.h sys/endian.h machine/endian.h sys/isa_defs.h)
 AC_CHECK_HEADERS(uchar.h)
+# zlib is not needed by sdcc itself, but by sdcpp and sdbinutils.
+AC_CHECK_HEADERS(zlib.h,,AC_MSG_ERROR([[zlib library not found (zlib.h).]]))
 AC_LANG_PUSH([C++])
 AC_CHECK_HEADERS(treedec/combinations.hpp,,AC_MSG_NOTICE([[treedec library missing, falling back to Thorup.]]))
 AC_CHECK_HEADERS(gala/graph.h)
@@ -799,7 +801,8 @@ AC_DO_PORT(pdk14,    pdk,    PDK14,    [Excludes the PDK14 port])
 AC_DO_PORT(pdk15,    pdk,    PDK15,    [Excludes the PDK15 port])
 AC_DO_PORT_ENABLER(pdk16,    pdk,    PDK16,    [Includes the PDK16 port])
 AC_DO_PORT(mos6502,  mos6502,MOS6502,  [Excludes the MOS6502 port])
-AC_DO_PORT_ENABLER(mos65c02, mos6502,MOS65C02, [Includes the MOS65C02 port])
+AC_DO_PORT(mos65c02, mos6502,MOS65C02, [Excludes the MOS65C02 port])
+AC_DO_PORT(f8,       f8,     F8,       [Excludes the F8 port])
 
 # Unsupported targets
 ####AC_DO_PORT_ENABLER(avr,   avr,   AVR,   [Includes the AVR port (disabled by default)])
@@ -965,6 +968,11 @@ if test $OPT_DISABLE_PDK16 = 0; then
   AC_CONFIG_FILES([sdas/aspdk16/Makefile])
 fi
 
+if test $OPT_DISABLE_F8 = 0; then
+  AC_CONFIG_FILES([src/f8/Makefile
+                   sdas/asf8/Makefile])
+  test $OPT_DISABLE_DEVICE_LIB = 0 && AC_CONFIG_FILES([device/lib/f8/Makefile])
+fi
 
 test $OPT_DISABLE_DEVICE_LIB = 0 && AC_CONFIG_FILES([device/lib/Makefile])
 test $OPT_DISABLE_DEVICE_LIB = 0 && test $OPT_DISABLE_NON_FREE = 0 && AC_CONFIG_FILES([device/non-free/lib/Makefile])
@@ -1061,6 +1069,7 @@ sdcc ${VERSION} is now configured for
     pdk16               ${enable_pdk16_port}
     mos6502             ${enable_mos6502_port}
     mos65c02            ${enable_mos65c02_port}
+    f8                  ${enable_f8_port}
 
   Disable non-free lib: ${OPT_DISABLE_NON_FREE}
   Disable packihx:      ${OPT_DISABLE_PACKIHX}

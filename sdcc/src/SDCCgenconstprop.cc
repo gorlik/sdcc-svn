@@ -1,4 +1,4 @@
-// (c) 2023 Philipp Klaus Krause, philipp@colecovision.eu
+// (c) 2023-2024 Philipp Klaus Krause, philipp@colecovision.eu
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
@@ -27,12 +27,6 @@
 #include <queue>
 #include <iostream>
 #include <ios>
-
-// Workaround for boost bug #11880
-#include <boost/version.hpp>
-#if BOOST_VERSION == 106000
-   #include <boost/type_traits/ice.hpp>
-#endif
 
 #include <boost/graph/graphviz.hpp>
 
@@ -102,11 +96,12 @@ create_cfg_genconstprop (cfg_t &cfg, iCode *start_ic, ebbIndex *ebbi)
 }
 
 struct valinfo
-getTypeValinfo (sym_link *type)
+getTypeValinfo (sym_link *type, bool loose)
 {
   struct valinfo v;
   v.anything = true;
   v.nothing = false;
+  v.nonnull = false;
   // Initialize all members of v, to ensure we don't read uninitalized memory later.
   v.min = v.max = 0ll;
   v.knownbitsmask = 0ull;
@@ -124,7 +119,10 @@ getTypeValinfo (sym_link *type)
     {
       v.anything = false;
       v.min = 0;
-      v.max = (1ll << (GPTRSIZE * 8)) - 1;
+      if (IS_FUNCPTR (type))
+        v.max = (1ll << ((IFFUNC_ISBANKEDCALL (type->next) ? BFUNCPTRSIZE : FUNCPTRSIZE) * 8)) - 1;
+      else
+        v.max = (1ll << (GPTRSIZE * 8)) - 1;
       v.knownbitsmask = ~((unsigned long long)v.max);
       if (TARGET_IS_MCS51 && IS_PTR (type) && !IS_GENPTR (type) ||
         TARGET_PDK_LIKE && IS_PTR (type) && (DCL_TYPE (type) == CPOINTER || DCL_TYPE (type) == POINTER))
@@ -167,6 +165,8 @@ getTypeValinfo (sym_link *type)
       v.anything = false;
       v.max = 0x7fffffffffffffffull >> (64 - bitsForType (type));
       v.min = -v.max - 1;
+      if (loose && IS_CHAR (type))
+        v.max = 0xffffffffffffffffull >> (64 - bitsForType (type)); // Use upper limit of unsigned type here, since sometimes, SDCC generates incorrect AST (using signed char, where there should be unsigned char) trying to avoid the costs of integer promotion.
       v.knownbitsmask = ~(0xffffffffffffffffull >> (64 - bitsForType (type)));
       v.knownbits = 0;
     }
@@ -184,6 +184,7 @@ getOperandValinfo (const iCode *ic, const operand *op)
   struct valinfo v;
   v.anything = true;
   v.nothing = false;
+  v.nonnull = false;
   v.min = v.max = 0;
   v.knownbitsmask = 0ull;
   v.knownbits = 0ull;
@@ -194,7 +195,8 @@ getOperandValinfo (const iCode *ic, const operand *op)
   sym_link *type = operandType (op);
 
   if (IS_INTEGRAL (type) && bitsForType (type) < 64 && !IS_OP_VOLATILE (op) && // Todo: More exact check than this bits thing?
-    (IS_OP_LITERAL (op) || IS_SYMOP (op) && SPEC_CONST (type) && OP_SYMBOL_CONST (op)->ival && IS_AST_VALUE (list2expr (OP_SYMBOL_CONST (op)->ival))))
+    (IS_OP_LITERAL (op) || IS_SYMOP (op) && SPEC_CONST (type) && OP_SYMBOL_CONST (op)->ival && IS_AST_VALUE (list2expr (OP_SYMBOL_CONST (op)->ival))) ||
+    (TARGET_Z80_LIKE || TARGET_IS_STM8 || TARGET_IS_F8) && IS_PTR (type) && IS_OP_LITERAL (op)) // Port has no tag bits in pointers
     {
       struct valinfo v2;
       long long litval;
@@ -220,11 +222,11 @@ getOperandValinfo (const iCode *ic, const operand *op)
       return (v);
     }
   else
-    return (getTypeValinfo (type));
+    return (getTypeValinfo (type, true));
 }
 
-static bool
-valinfo_union (struct valinfo *v0, const struct valinfo &v1)
+bool
+valinfo_union (struct valinfo *v0, const struct valinfo v1)
 {
   bool change = false;
   auto new_anything = v0->anything || v1.anything;
@@ -233,6 +235,9 @@ valinfo_union (struct valinfo *v0, const struct valinfo &v1)
   auto new_nothing = v0->nothing && v1.nothing;
   change |= (v0->nothing != new_nothing);
   v0->nothing = new_nothing;
+  auto new_nonnull = v0->nonnull && v1.nonnull;
+  change |= (v0->nonnull != new_nonnull);
+  v0->nonnull = new_nonnull;
   auto new_min = std::min (v0->min, v1.min);
   change |= (v0->min != new_min);
   v0->min = new_min;
@@ -286,7 +291,7 @@ dump_op_info (std::ostream &os, const iCode *ic, operand *op)
 
 // Dump cfg.
 static void
-dump_cfg_genconstprop (const cfg_t &cfg, std::string suffix)
+dump_cfg_genconstprop (const cfg_t &cfg, const std::string& suffix)
 {
   std::ofstream dump_file ((std::string (dstFileName) + ".dumpgenconstpropcfg" + suffix + (currFunc ? currFunc->rname : "__global") + ".dot").c_str());
 
@@ -328,13 +333,13 @@ valinfoUpdate (struct valinfo *v)
     return;
 
   // Update bits from min/max.
-  if (v->min == v->max)
+  if (v->min == v->max) // Fixed value.
     {
       v->knownbitsmask = ~0ull;
       v->knownbits = v->min;
       return;
     }
-  for (int i = 0; i < 62; i++)
+  for (int i = 0; i < 62; i++) // Leading zeroes.
     {
       if (v->min >= 0 && v->max < (1ll << i))
         {
@@ -387,6 +392,7 @@ valinfoPlus (struct valinfo *result, sym_link *resulttype, const struct valinfo 
           result->knownbitsmask |= (left.knownbitsmask & 0x8000ull);
           result->knownbits = result->knownbits & ~0x8000ull | left.knownbits & 0x8000ull;
         }
+      result->nonnull |= left.nonnull;
     }
   if (!left.anything && !right.anything &&
     left.min >= 0 && right.min >= 0)
@@ -431,6 +437,7 @@ valinfoMinus (struct valinfo *result, sym_link *resulttype, const struct valinfo
           result->knownbitsmask |= (left.knownbitsmask & 0x8000ull);
           result->knownbits = result->knownbits & ~0x8000ull | left.knownbits & 0x8000ull;
         }
+      result->nonnull |= left.nonnull;
     }
   // todo: rewrite using ckd_sub when we can assume host compiler has c2x support!
   if (!left.anything && !right.anything &&
@@ -501,7 +508,7 @@ valinfoMod (struct valinfo *result, const struct valinfo &left, const struct val
       result->min = std::min (left.min, 0ll);
       result->max = std::max (left.max, 0ll);
     }
-  if (!left.anything && !right.anything && left.min >= 0 && right.min >= 0 && right.max <= result->max);
+  if (!left.anything && !right.anything && left.min >= 0 && right.min >= 0 && right.max <= result->max)
     result->max = right.max - 1;
 }
 
@@ -582,24 +589,29 @@ valinfoGetABit (struct valinfo *result, const struct valinfo &left, const struct
 static void
 valinfoLeft (struct valinfo *result, const struct valinfo &left, const struct valinfo &right)
 {
-  if (!left.anything && !right.anything && right.min == right.max && right.max < 64)
+  if (!left.anything && !right.anything && right.min == right.max && right.max < 62)
     {
       result->nothing = left.nothing || right.nothing;
-      struct valinfo rv;
-      rv.nothing = result->nothing;
-      rv.anything = false;
-      rv.min = left.min;
-      rv.max = left.max;
+      long long min, max;
+      min = left.min;
+      max = left.max;
       for(long long r = right.max; r; r--)
         {
-          if (rv.min < 0 || rv.max > (1ll << 61))
+          if (min < 0 || max > (1ll << 61))
             return;
-          rv.min <<= 1;
-          rv.max <<= 1;
+          min <<= 1;
+          max <<= 1;
         }
-      rv.knownbitsmask = (left.knownbitsmask << right.max) | ~(~0ull << right.max);
-      rv.knownbits = left.knownbits << right.max;
-      *result = rv;
+      if (!result->anything)
+      	max = std::min (result->max, max);
+      result->anything = false;
+      result->min = min;
+      result->max = max;
+    }
+  if(!right.anything && right.min > 0 && right.min < 63)
+    {
+      result->knownbitsmask |= ~(~0ull << right.min);
+      result->knownbits &= (~0ull << right.min);
     }
 }
 
@@ -607,14 +619,14 @@ static void
 valinfoRight (struct valinfo *result, const struct valinfo &left, const struct valinfo &right)
 {
   if (!left.anything && !right.anything &&
-    left.min >= 0 && right.min >= 0 && right.min <= 60)
+    left.min >= 0 && right.min >= 0 && right.min <= 61)
     {
-      result->anything = false;
       result->nothing = left.nothing || right.nothing;
       result->min = 0;
       auto max = (left.max >> right.min);
-      if (max <= result->max)
+      if (result->anything || max <= result->max)
         result->max = max;
+      result->anything = false;
       if (right.min == right.max)
         {
           result->knownbitsmask = left.knownbitsmask >> right.min;
@@ -626,10 +638,12 @@ valinfoRight (struct valinfo *result, const struct valinfo &left, const struct v
 static void
 valinfoCast (struct valinfo *result, sym_link *targettype, const struct valinfo &right)
 {
-  *result = getTypeValinfo (targettype);
+  bool genptrtarget = IS_GENPTR (targettype) || (TARGET_Z80_LIKE || TARGET_IS_F8 || TARGET_IS_STM8); // Some ports have no tag bits in pointers.
+
+  *result = getTypeValinfo (targettype, false);
   if (right.nothing)
     result->nothing = true;
-  else if (!right.anything && (IS_INTEGRAL (targettype) || IS_GENPTR (targettype)) && 
+  else if (!right.anything && (IS_INTEGRAL (targettype) || genptrtarget) && 
     (!result->anything && right.min >= result->min && right.max <= result->max || result->anything))
     {
       result->min = right.min;
@@ -654,10 +668,15 @@ valinfoCast (struct valinfo *result, sym_link *targettype, const struct valinfo 
       result->knownbitsmask = ~0ull;
       result->knownbits = result->min;
     }
+
+  if (!right.anything && genptrtarget && right.nonnull)
+    {
+      result->nonnull = false;
+    }
 }
 
 static void
-recompute_node (cfg_t &G, unsigned int i, ebbIndex *ebbi, std::pair<std::queue<unsigned int>, std::set<unsigned int> > &todo, bool externchange, bool end_it_quickly)
+recompute_node (cfg_t &G, unsigned int i, ebbIndex *ebbi, std::pair<std::queue<unsigned int>, std::set<unsigned int> > &todo, bool externchange, int end_it_quickly)
 {
   iCode *const ic = G[i].ic;
   bool change = externchange;
@@ -754,21 +773,44 @@ recompute_node (cfg_t &G, unsigned int i, ebbIndex *ebbi, std::pair<std::queue<u
       break;
     default:
       G[*out] = *ic->valinfos;
+      if (ic->resultvalinfo)
+        G[*out].map[ic->result->key] = *ic->resultvalinfo;
 
       if (resultsym)
-        resultvalinfo = getTypeValinfo (operandType (IC_RESULT (ic)));
+        resultvalinfo = getTypeValinfo (operandType (ic->result), true);
+      else
+        resultvalinfo.anything = true;
 
 #ifdef DEBUG_GCP_ANALYSIS
-      if (localchange)
-        std::cout << "Recompute node " << i << " ic " << ic->key << "\n";std::cout << "getTypeValinfo: resultvalinfo anything " << resultvalinfo.anything << " knownbitsmask 0x" << std::hex << resultvalinfo.knownbitsmask << std::dec << "\n";
+      if (localchange && resultsym)
+        {
+          std::cout << "Recompute node " << i << " ic " << ic->key << "\n";
+          std::cout << "getTypeValinfo: resultvalinfo anything " << resultvalinfo.anything << " knownbitsmask 0x" << std::hex << resultvalinfo.knownbitsmask << std::dec << " min " << resultvalinfo.min << "\n";
+          if (ic->right)
+            std::cout << "rightvalinfo anything " << rightvalinfo.anything << " min " << rightvalinfo.min << " max " << rightvalinfo.max << "\n";
+        }
 #endif
+
+      // Just use the very rough approximation from the type info only to speed up analysis.
+      if (ic->op != '=' && ic->op != CAST && ic->op != '!' &&
+        (end_it_quickly > 1 || end_it_quickly > 0 && (ic->op == '+' || ic->op == '-')))
+        {
+          if (left && !(IS_INTEGRAL (operandType (left)) && bitsForType (operandType (left)) < 64 && IS_OP_LITERAL (left)))
+            leftvalinfo = getTypeValinfo (operandType (left), true);
+          if (right && !(IS_INTEGRAL (operandType (right)) && bitsForType (operandType (right)) < 64 && IS_OP_LITERAL (right)))
+            rightvalinfo = getTypeValinfo (operandType (right), true);
+        }
 
       if (!localchange) // Input didn't change. No need to recompute result.
         resultsym = 0;
-      else if (end_it_quickly) // Just use the very rough approximation from the type info only to speed up analysis.
+      else if (IS_OP_VOLATILE (ic->result)) // No point trying to find out what we write to a volatile operand. At the next use, it could be anything, anyway.
         ;
-      else if (IS_OP_VOLATILE (IC_RESULT (ic))) // No point trying to find out what we write to a volatile operand. At the next use, it could be anything, anyway.
-        ;
+      else if (ic->op == ADDRESS_OF)
+        {
+          if(resultvalinfo.min <= 0)
+           resultvalinfo.min = 1;
+          resultvalinfo.nonnull = true;
+        }
       else if (ic->op == '!')
         {
           resultvalinfo.nothing = leftvalinfo.nothing;
@@ -830,9 +872,15 @@ recompute_node (cfg_t &G, unsigned int i, ebbIndex *ebbi, std::pair<std::queue<u
           resultvalinfo.max = 1;
           resultvalinfo.knownbitsmask = ~1ull;
           resultvalinfo.knownbits = 0ull;
-          if (!leftvalinfo.anything && !rightvalinfo.anything && leftvalinfo.min == leftvalinfo.max && rightvalinfo.min == rightvalinfo.max)
+          if (IS_INTEGRAL (operandType (left)) && !leftvalinfo.anything && !rightvalinfo.anything && leftvalinfo.min == leftvalinfo.max && rightvalinfo.min == rightvalinfo.max)
             {
               bool one = (leftvalinfo.min == rightvalinfo.min) ^ (ic->op == NE_OP);
+              resultvalinfo.min = one;
+              resultvalinfo.max = one;
+            }
+          else if (IS_PTR (operandType (left)) && !leftvalinfo.anything && !rightvalinfo.anything && leftvalinfo.nonnull && rightvalinfo.min == 0 && rightvalinfo.max == 0)
+            {
+              bool one = (ic->op == NE_OP);
               resultvalinfo.min = one;
               resultvalinfo.max = one;
             }
@@ -867,12 +915,12 @@ recompute_node (cfg_t &G, unsigned int i, ebbIndex *ebbi, std::pair<std::queue<u
         {
           valinfoUpdate (&resultvalinfo);
 #ifdef DEBUG_GCP_ANALYSIS
-          std::cout << "resultvalinfo anything " << resultvalinfo.anything << " knownbitsmask 0x" << std::hex << resultvalinfo.knownbitsmask << " knownbits 0x" << resultvalinfo.knownbits << std::dec << " min " << resultvalinfo.min << "\n";
+          std::cout << "resultvalinfo anything " << resultvalinfo.anything << " knownbitsmask 0x" << std::hex << resultvalinfo.knownbitsmask << " knownbits 0x" << resultvalinfo.knownbits << std::dec << " min " << resultvalinfo.min << " max " << resultvalinfo.max << " nonnull " << resultvalinfo.nonnull << "\n";
 #endif
           if (!ic->resultvalinfo)
             ic->resultvalinfo = new struct valinfo;
           *ic->resultvalinfo = resultvalinfo;
-          G[*out].map[resultsym->key] = resultvalinfo;
+          G[*out].map[ic->result->key] = resultvalinfo;
         }
       if (todo.second.find (boost::target(*out, G)) == todo.second.end())
         {
@@ -890,7 +938,7 @@ recomputeValinfos (iCode *sic, ebbIndex *ebbi, const char *suffix)
   std::cout << "recomputeValinfos at " << (currFunc ? currFunc->name : "[NOFUNC]") << "\n"; std::cout.flush();
 #endif
 
-  unsigned int max_rounds = 1000; // Rapidly end analysis once this number of rounds has been exceeded.
+  unsigned long max_rounds = 18000; // Rapidly end analysis once this number of rounds has been exceeded.
 
   cfg_t G;
 
@@ -905,11 +953,11 @@ recomputeValinfos (iCode *sic, ebbIndex *ebbi, const char *suffix)
       G[i].ic->valinfos = NULL;
       delete G[i].ic->resultvalinfo;
       G[i].ic->resultvalinfo = NULL;
-      recompute_node (G, i, ebbi, todo, true, false);
+      recompute_node (G, i, ebbi, todo, true, 0);
     }
 
   // Forward pass to get first approximation.
-  for (unsigned int round = 0; !todo.first.empty (); round++)
+  for (unsigned long round = 0; !todo.first.empty (); round++)
     {
       // Take next node that needs updating.
       unsigned int i = todo.first.front ();
@@ -919,7 +967,8 @@ recomputeValinfos (iCode *sic, ebbIndex *ebbi, const char *suffix)
 #ifdef DEBUG_GCP_ANALYSIS
       std::cout << "Round " << round << " node " << i << " ic " << G[i].ic->key << "\n"; std::cout.flush();
 #endif
-      recompute_node (G, i, ebbi, todo, false, round >= max_rounds);
+
+      recompute_node (G, i, ebbi, todo, false, (round >= max_rounds) + (round >= max_rounds * 2));
     }
 
   // Refinement backward pass.
@@ -954,12 +1003,9 @@ optimizeValinfoConst (iCode *sic)
 #ifdef DEBUG_GCP_OPT
               std::cout << "Replace result at " << ic->key << ". anything " << vresult.anything << " min " << vresult.min << " max " << vresult.max << "\n";
 #endif
-              if (IS_SYMOP (left))
-                bitVectUnSetBit (OP_USES (left), ic->key);
-              if (IS_SYMOP (right))
-                bitVectUnSetBit (OP_USES (right), ic->key);
+              detachiCodeOperand (&ic->left, ic);
+              detachiCodeOperand (&ic->right, ic);
               ic->op = '=';
-              ic->left = NULL;
               ic->right = operandFromValue (valCastLiteral (operandType (result), vresult.min, vresult.min), false);
             }
           else
@@ -969,16 +1015,14 @@ optimizeValinfoConst (iCode *sic)
 #ifdef DEBUG_GCP_OPT
                   std::cout << "Replace left (" << OP_SYMBOL(left)->name << "), key " << left->key << " at " << ic->key << "\n";std::cout << "anything " << vleft.anything << " min " << vleft.min << " max " << vleft.max << "\n";
 #endif
-                  bitVectUnSetBit (OP_USES (left), ic->key);
-                  ic->left = operandFromValue (valCastLiteral (operandType (left), vleft.min, vleft.min), false);
+                  attachiCodeOperand (operandFromValue (valCastLiteral (operandType (left), vleft.min, vleft.min), false), &ic->left, ic);
                 }
               if (right && IS_ITEMP (right) && !vright.anything && vright.min == vright.max)
                 {
 #ifdef DEBUG_GCP_OPT
                   std::cout << "Replace right at " << ic->key << "\n";std::cout << "anything " << vleft.anything << " min " << vleft.min << " max " << vleft.max << "\n";
 #endif
-                  bitVectUnSetBit (OP_USES (right), ic->key);
-                  ic->right = operandFromValue (valCastLiteral (operandType (right), vright.min, vright.min), false);
+                  attachiCodeOperand (operandFromValue (valCastLiteral (operandType (right), vright.min, vright.min), false), &ic->right, ic);
                 }
             }
           
@@ -989,6 +1033,9 @@ optimizeValinfoConst (iCode *sic)
 static void
 reTypeOp (operand *op, sym_link *newtype)
 {
+#if 0
+  std::cout << "reType Op to "; std::cout.flush(); printTypeChain (newtype, 0);
+#endif
   if (IS_OP_LITERAL (op))
     {
       op->svt.valOperand = valCastLiteral (newtype, operandLitValue (op), operandLitValueUll (op));
@@ -1052,6 +1099,7 @@ optimizeNarrowOpNet (iCode *ic)
   checknet.insert (ic->result);
 
   struct valinfo v = *(ic->resultvalinfo);
+  unsigned int ptropwidth = 0; // Width of pointers that an integer net is added to (only bits within address space count, not tag bits).
 
 #if 0
   std::cout << "optimizeNarrowOpNet at ic " << ic->key << ": " << OP_SYMBOL (ic->result)->name << "\n"; std::cout.flush();
@@ -1084,12 +1132,12 @@ optimizeNarrowOpNet (iCode *ic)
               wassert (isOperandEqual (dic->result, op));
               if (net.find(dic->left) == net.end() && IS_PTR (operandType (ic->result)) == IS_PTR (operandType (dic->left)))
                 {
-                  net.insert (dic->left),
+                  net.insert (dic->left);
                   checknet.insert (dic->left);
                 }
               if (net.find(dic->right) == net.end() && IS_PTR (operandType (ic->result)) == IS_PTR (operandType (dic->right)))
                 {
-                  net.insert (dic->right),
+                  net.insert (dic->right);
                   checknet.insert (dic->right);
                 }
             }
@@ -1107,7 +1155,7 @@ optimizeNarrowOpNet (iCode *ic)
           iCode *uic = (iCode *)hTabItemWithKey (iCodehTab, key);
           if (!uic)
             bitVectUnSetBit (OP_USES (op), key); // Looks like some earlier optimization didn't clean up properly. Do it now.
-          else if (uic->op == CAST)
+          else if (uic->op == CAST && !IS_FLOAT (operandType (uic->result)))
             valinfo_union (&v, getOperandValinfo (uic, uic->right));
           else if (uic->op == EQ_OP || uic->op == NE_OP || uic->op == '<' || uic->op == LE_OP || uic->op == '>' || uic->op == GE_OP)
             {
@@ -1116,7 +1164,7 @@ optimizeNarrowOpNet (iCode *ic)
                   valinfo_union (&v, getOperandValinfo (uic, uic->right));
                   if (net.find(uic->right) == net.end())
                     {
-                      net.insert (uic->right),
+                      net.insert (uic->right);
                       checknet.insert (uic->right);
                     }
                 }
@@ -1125,42 +1173,65 @@ optimizeNarrowOpNet (iCode *ic)
                   valinfo_union (&v, getOperandValinfo (uic, uic->left));
                   if (net.find(uic->left) == net.end())
                     {
-                      net.insert (uic->left),
+                      net.insert (uic->left);
                       checknet.insert (uic->left);
                     }
                 }
             }
           else if (uic->op == '+' || uic->op == '-' || uic->op == '^' || uic->op == '|' || uic->op == BITWISEAND)
             {
-              if (isOperandEqual (uic->left, op) && !isOperandEqual (uic->right, op) && !IS_PTR (operandType (ic->result)))
+              if (!IS_PTR (operandType (op)) && IS_PTR (operandType (uic->result)) && v.min < 0) // Avoid breaking the addition of signed offsets to pointers (bug #3807).
+                {
+                  unsigned int pwidth = bitsForType (operandType (uic->result));
+                  // mcs51 has 24 bit pointers, but at most 16 bits in each individual address space.
+                  if (TARGET_IS_MCS51 && pwidth > 16)
+                    pwidth = 16;
+                  if (TARGET_IS_DS390 && pwidth > 24)
+                    pwidth = 24;
+                  // The pdk ports are actually named for the maximum number of address bits in their biggest address space.
+                  else if (TARGET_IS_PDK13 && pwidth > 13)
+                    pwidth = 13;
+                  else if (TARGET_IS_PDK14 && pwidth > 14)
+                    pwidth = 14;
+                  else if (TARGET_IS_PDK15 && pwidth > 15)
+                    pwidth = 15;
+                  else if (TARGET_IS_PDK16 && pwidth > 16)
+                    pwidth = 16;
+                  if (pwidth > ptropwidth)
+                    ptropwidth = pwidth;
+                }
+              if (isOperandEqual (uic->left, op) && !IS_PTR (operandType (uic->result)))
                 {
                   if (net.find(uic->right) == net.end())
                     {
-                      net.insert (uic->right),
+                      net.insert (uic->right);
                       checknet.insert (uic->right);
                     }
                 }
-              if (!isOperandEqual (uic->left, op) && isOperandEqual (uic->right, op) && !IS_PTR (operandType (ic->result)))
+              if (isOperandEqual (uic->right, op) && !IS_PTR (operandType (uic->result)) )
                 {
                   if (net.find(uic->left) == net.end())
                     {
-                      net.insert (uic->left),
+                      net.insert (uic->left);
                       checknet.insert (uic->left);
                     }
                 }
-              if (net.find(uic->result) == net.end())
+              if (IS_PTR (operandType (ic->result)) == IS_PTR (operandType (uic->result)))
                 {
-                  net.insert (uic->result),
-                  checknet.insert (uic->result);
+                  if(net.find(uic->result) == net.end())
+                  {
+                    net.insert (uic->result);
+                    checknet.insert (uic->result);
+                  }
                 }
             }
           else if ((uic->op == LEFT_OP || uic->op == RIGHT_OP || uic->op == ROT) && !isOperandEqual (uic->left, op))
             ;
-          else if ((uic->op == LEFT_OP || uic->op == RIGHT_OP || uic->op == UNARYMINUS || uic->op == '~') && isOperandEqual (uic->left, op)) // Not ROT, since the size affects emantics.
+          else if ((uic->op == LEFT_OP || uic->op == RIGHT_OP || uic->op == UNARYMINUS || uic->op == '~') && isOperandEqual (uic->left, op)) // Not ROT, since the size affects semantics.
             {
               if (net.find(uic->result) == net.end())
                 {
-                  net.insert (uic->result),
+                  net.insert (uic->result);
                   checknet.insert (uic->result);
                 }
             }
@@ -1202,6 +1273,8 @@ optimizeNarrowOpNet (iCode *ic)
       if (my_stdc_bit_width (-v.min) > width)
         width = my_stdc_bit_width (-v.min);
       width++; // Add one for the "sign bit".
+      if (ptropwidth > width)
+        width = ptropwidth;
       width = ((width + 7) & (-8)); // Round up to multiple of 8.
       if (width >= bitsForType (operandType (ic->result)))
         return;
@@ -1268,15 +1341,21 @@ optimizeMult (iCode *ic)
 
   sym_link *oldoptype = operandType (left);
   sym_link *oldresulttype = operandType (result);
-  
-  if (!IS_INTEGRAL (oldresulttype) || bitsForType (oldresulttype) <= 16 || bitsForType (oldoptype) <= 8)
-    return;
 
   struct valinfo leftv = getOperandValinfo (ic, left);
   struct valinfo rightv = getOperandValinfo (ic, right);
   struct valinfo resultv = *ic->resultvalinfo;
 
   if (leftv.anything || rightv.anything || resultv.anything || leftv.min < 0 || rightv.min < 0 || leftv.max > 0xffff || rightv.max > 0xffff || resultv.max > 0xffff)
+    return;
+
+  if (!IS_INTEGRAL (oldresulttype) || bitsForType (oldoptype) <= 8 || bitsForType (oldresulttype) <= 8)
+    return;
+
+  if (bitsForType (oldresulttype) <= 16 && (leftv.max > 0xff || rightv.max > 0xff))
+    return;
+
+  if (ic->op == '*' && bitsForType (oldresulttype) <= 16)
     return;
 
   sym_link *newoptype;
@@ -1313,8 +1392,8 @@ optimizeValinfoNarrow (iCode *sic)
     optimizeNarrowOpNet (ic);
 
   for (iCode *ic = sic; ic; ic = ic->next)
-    if (ic->op == '*')
-      optimizeMult (ic);
+      if (ic->op == '*' || ic->op == '/' || ic->op == '%')
+        optimizeMult (ic);
 }
 
 // Do machine-independent optimizations based on valinfos.

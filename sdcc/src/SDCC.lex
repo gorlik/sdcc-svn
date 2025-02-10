@@ -30,6 +30,7 @@ HC  '?[a-fA-F0-9]
 BC  '?[01]
 
 D       [0-9]
+O       [0-7]
 H       [a-fA-F0-9]
 B       [01]
 L       [a-zA-Z_$]
@@ -201,6 +202,9 @@ static void checkCurrFile (const char *s);
 "typeof"                { count (); TKEYWORD2X (TYPEOF); }
 "typeof_unqual"         { count (); TKEYWORD2X (TYPEOF_UNQUAL); }
 
+ /* C2y */
+"_Lengthof"             { count (); return LENGTHOF; }
+
  /* SDCC-specific intrinsic named address spaces (as per Embedded C TS) */
 "__code"                { count (); TKEYWORD (CODE); }
 "__data"                { count (); TKEYWORD (DATA); }
@@ -274,7 +278,7 @@ static void checkCurrFile (const char *s);
 
 [1-9]{DC}*({IS}|{WB})?       { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
 0[xX]{H}{HC}*({IS}|{WB})?    { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
-0{OC}*({IS}|{WB})?           { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
+0([oO]{O})?{OC}*({IS}|{WB})? { count (); yylval.val = constIntVal (yytext); return CONSTANT; }
 0[bB]{B}{BC}*({IS}|{WB})?    { count (); yylval.val = constIntVal (yytext); return CONSTANT; } /* C23 binary integer constant. All standard version warnings on integer constants are done in constIntVal. */
 {CP}?'(\\.|[^\\'])+'         { count (); yylval.val = charVal (yytext); return CONSTANT; /* ' make syntax highlighter happy */ }
 {D}+{E}{FS}?                 { count (); yylval.val = constFloatVal (yytext); return CONSTANT; }
@@ -833,10 +837,12 @@ enum {
    P_STD_C11,
    P_STD_C23,
    P_STD_C2X,
+   P_STD_C2Y,
    P_STD_SDCC89,
    P_STD_SDCC99,
    P_STD_SDCC11,
    P_STD_SDCC23,
+   P_STD_SDCC2Y,
    P_CODESEG,
    P_CONSTSEG
 };
@@ -1170,6 +1176,7 @@ doPragma (int id, const char *name, const char *cp)
       options.std_c99 = 0;
       options.std_c11 = 0;
       options.std_c23 = 0;
+      options.std_c2y = 0;
       options.std_sdcc = 0;
       break;
 
@@ -1184,6 +1191,7 @@ doPragma (int id, const char *name, const char *cp)
       options.std_c99 = 1;
       options.std_c11 = 0;
       options.std_c23 = 0;
+      options.std_c2y = 0;
       options.std_sdcc = 0;
       break;
 
@@ -1198,6 +1206,7 @@ doPragma (int id, const char *name, const char *cp)
       options.std_c99 = 1;
       options.std_c11 = 1;
       options.std_c23 = 0;
+      options.std_c2y = 0;
       options.std_sdcc = 0;
       break;
 
@@ -1213,6 +1222,22 @@ doPragma (int id, const char *name, const char *cp)
       options.std_c99 = 1;
       options.std_c11 = 1;
       options.std_c23 = 1;
+      options.std_c2y = 0;
+      options.std_sdcc = 0;
+      break;
+
+    case P_STD_C2Y:
+      cp = get_pragma_token(cp, &token);
+      if (TOKEN_EOL != token.type)
+        {
+          err = 1;
+          break;
+        }
+
+      options.std_c99 = 1;
+      options.std_c11 = 1;
+      options.std_c23 = 1;
+      options.std_c2y = 1;
       options.std_sdcc = 0;
       break;
 
@@ -1227,6 +1252,7 @@ doPragma (int id, const char *name, const char *cp)
       options.std_c99 = 0;
       options.std_c11 = 0;
       options.std_c23 = 0;
+      options.std_c2y = 0;
       options.std_sdcc = 1;
       break;
 
@@ -1241,6 +1267,7 @@ doPragma (int id, const char *name, const char *cp)
       options.std_c99 = 1;
       options.std_c11 = 0;
       options.std_c23 = 0;
+      options.std_c2y = 0;
       options.std_sdcc = 1;
       break;
 
@@ -1255,6 +1282,7 @@ doPragma (int id, const char *name, const char *cp)
       options.std_c99 = 1;
       options.std_c11 = 1;
       options.std_c23 = 0;
+      options.std_c2y = 0;
       options.std_sdcc = 1;
       break;
 
@@ -1269,6 +1297,22 @@ doPragma (int id, const char *name, const char *cp)
       options.std_c99 = 1;
       options.std_c11 = 1;
       options.std_c23 = 1;
+      options.std_c2y = 0;
+      options.std_sdcc = 1;
+      break;
+
+    case P_STD_SDCC2Y:
+      cp = get_pragma_token(cp, &token);
+      if (TOKEN_EOL != token.type)
+        {
+          err = 1;
+          break;
+        }
+
+      options.std_c99 = 1;
+      options.std_c11 = 1;
+      options.std_c23 = 1;
+      options.std_c2y = 1;
       options.std_sdcc = 1;
       break;
 
@@ -1340,10 +1384,12 @@ static struct pragma_s pragma_tbl[] = {
   { "std_c11",           P_STD_C11,         0, doPragma },
   { "std_c23",           P_STD_C23,         0, doPragma },
   { "std_c2x",           P_STD_C2X,         1, doPragma },
+  { "std_c2y",           P_STD_C2Y,         0, doPragma },
   { "std_sdcc89",        P_STD_SDCC89,      0, doPragma },
   { "std_sdcc99",        P_STD_SDCC99,      0, doPragma },
   { "std_sdcc11",        P_STD_SDCC11,      0, doPragma },
   { "std_sdcc23",        P_STD_SDCC23,      0, doPragma },
+  { "std_sdcc2y",        P_STD_SDCC2Y,      0, doPragma },
   { "codeseg",           P_CODESEG,         0, doPragma },
   { "constseg",          P_CONSTSEG,        0, doPragma },
   { NULL,                0,                 0, NULL },

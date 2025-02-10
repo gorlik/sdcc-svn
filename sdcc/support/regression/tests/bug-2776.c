@@ -11,7 +11,6 @@
 
 #include <stdarg.h>
 
-#if !defined(__SDCC_mos6502) && !defined(__SDCC_hc08) && !defined(__SDCC_s08) // Todo: enable when struct parameters are supported!
 struct tiny
 {
   char c;
@@ -19,7 +18,7 @@ struct tiny
 
 void f (int n, ...);
 
-m ()
+void m ()
 {
   struct tiny x[3];
   x[0].c = 10;
@@ -47,15 +46,12 @@ void f (int n, ...)
 
 	va_end (args);
 }
-#endif
 
 void
 testBug (void)
 {
-#if !defined(__SDCC_mos6502) && !defined(__SDCC_hc08) && !defined(__SDCC_s08) // Todo: enable when struct parameters are supported!
 #ifndef __OpenBSD__ // Known to fail on OpenBSD 7.3 powerpc64 (don't know for other OpenBSD versions or archs) reported to OpenBSD.
   m ();
-#endif
 #endif
 }
 
